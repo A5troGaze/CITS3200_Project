@@ -1,0 +1,10 @@
+Development -> Ubuntu
+
+Simulation -> Unitree Mujoco
+
+Human pose detection -> MediaPipe
+
+Robot current state / pose / move -> Unitree SDK Python
+
+Kinematics / Retargeting -> mink  OR  Pinocchio
+

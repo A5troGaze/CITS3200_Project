@@ -8,3 +8,26 @@ Robot current state / pose / move -> Unitree SDK Python
 
 Kinematics / Retargeting -> mink  OR  Pinocchio
 
+
+Image processing first:
+2 teams of 3 -> 2 weeks
+	-> gesture identification
+	-> body pose identification
+
+person identification (track 1 person at a time):
+	-> input a video (multiple people)
+	-> find and identify people
+	-> describe the person	-> follow and identify person who fits description
+				-> return the 'skeleton'
+				-> draw a box to track person or click on person in video
+	-> render a bounding box around a person -> render skeleton on top of person
+
+gesture:
+	-> multiple different classes of gestures
+	-> translate meaning of gesture:
+		-> i.e. turn around (360), backward, forward, turn left (45), turn right (45), go left go right. etc.
+	-> output to console -> "frame 56: thumbs up"
+
+
+Requirements:
+	-> break down broad goals into individual requirments

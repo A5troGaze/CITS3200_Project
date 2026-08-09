@@ -1,0 +1,54 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Virtual environments ---
+venv/
+env/
+ENV/
+g1-env/
+*-env/
+.venv/
+
+# --- Editor / IDE ---
+.vscode/
+*.code-workspace
+.idea/
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Data / model files ---
+*.pkl
+*.pt
+*.pth
+*.mp4
+*.avi
+
+# --- Environment variables / secrets ---
+.env

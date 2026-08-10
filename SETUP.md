@@ -21,8 +21,9 @@
 │   ├── unitree_sdk2_python/   ← cloned from Unitree's GitHub
 │   └── GMR/                   ← cloned from YanjieZe/GMR
 └── Project/                   ← the actual Git repo (this is what you clone from GitHub)
-    └── Documentation/
-
+    ├── Documentation/
+    └── Project Files/
+    
 ~/cyclonedds/                  ← kept separate — system-level infrastructure
 └── install/
 ```

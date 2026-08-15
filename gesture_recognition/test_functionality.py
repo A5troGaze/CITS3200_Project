@@ -1,6 +1,6 @@
 # Test Functionality of dependencies being used in gesture recognition product
 
-#== Import all dependencies for gesture recognition app ================================================
+#== Import all dependencies for testing ========================
 import cv2                                              # OpenCV. Handles camera
 import os                                               # os
 import mediapipe as mp                                  # Core Mediapipe library
@@ -10,7 +10,7 @@ from mediapipe.tasks.python import vision               # Mediapipe's Tasks visi
 #== Path to the hand_landmarker model used for gesture recognition =====================================
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
 
-#== Define hand model ==================================================================================
+#== Define hand model ==========================================================
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),          # thumb
     (0, 5), (5, 6), (6, 7), (7, 8),          # index finger
@@ -20,7 +20,7 @@ HAND_CONNECTIONS = [
     (0, 17) 
 ]
 
-#== Set up landmarker model ============================================================================
+#== Set up landmarker model ====================================================
 base_options = python.BaseOptions(model_asset_path=MODEL_PATH)  # Set path to model
 options = vision.HandLandmarkerOptions(                         # Configure model:
     base_options=base_options,                                      # Path
@@ -29,11 +29,11 @@ options = vision.HandLandmarkerOptions(                         # Configure mode
 )
 landmarker = vision.HandLandmarker.create_from_options(options) # Create the useable object
 
-#== Camera Setup =======================================================================================
+#== Camera Setup ===============================================================
 cap = cv2.VideoCapture(0)   # Opens device at index 0 (usually webcam, change index if another device is required)
 frame_timestamp_ms = 0      # Running counter that gets incremented after every frame
 
-#== Main Loop ==========================================================================================
+#== Main Loop ==================================================================
 while cap.isOpened():
     #== Run while camera is open ======
     ok, frame = cap.read()

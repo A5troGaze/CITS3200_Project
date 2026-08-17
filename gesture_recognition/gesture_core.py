@@ -30,7 +30,7 @@ Takes:
 - registry (dictionary of gesture names and stored sample vectors)
 - threshold (distance cutoff, default of 0.3)
 '''
-def classify(vector, registry, threshold=0.3):
+def classify(vector, registry, threshold=0.9):
     '''
     Compare live hand vectors against stored samples.
     Return (gesture_name, distance) or (None, distance) if nothing is close enough to a stored gesture.

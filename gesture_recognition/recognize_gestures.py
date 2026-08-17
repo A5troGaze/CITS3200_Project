@@ -82,6 +82,10 @@ while cap.isOpened():
         current_gesture = "no hand"
         dist = None
 
+    #== TEMPORARY DEBUG: print distance a few times a second, regardless of change
+    if dist is not None and frame_timestamp_ms % 300 < 33:
+        print(f"  live: {current_gesture} dist={dist:.3f}")
+
     #== Only print when the recognized gesture actually changes =================
     if current_gesture != last_gesture:
         if dist is not None:

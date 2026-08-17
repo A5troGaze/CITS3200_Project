@@ -109,7 +109,7 @@ while cap.isOpened():
 
 #== Summary: how close did we ever get, even if nothing beat the threshold? ======
 if best_overall_dist < float("inf"):
-    print(f"Closest distance seen across the whole run: {best_overall_dist:.3f} (threshold is 0.3)")
+    print(f"Closest distance seen across the whole run: {best_overall_dist:.3f}")
 else:
     print("No hand was ever detected in this run.")
 

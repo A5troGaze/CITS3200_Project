@@ -24,7 +24,7 @@ HAND_CONNECTIONS = [
 base_options = python.BaseOptions(model_asset_path=MODEL_PATH)  # Set path to model
 options = vision.HandLandmarkerOptions(                         # Configure model:
     base_options=base_options,                                      # Path
-    num_hands=1,                                                    # Number of hands
+    num_hands=2,                                                    # Number of hands
     running_mode=vision.RunningMode.VIDEO                           # Expect video stream
 )
 landmarker = vision.HandLandmarker.create_from_options(options) # Create the useable object

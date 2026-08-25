@@ -28,9 +28,9 @@ def landmarks_to_vector(hand_landmarks):
 Takes: 
 - vector (63 number fingerprint from landmarks_to_vector)
 - registry (dictionary of gesture names and stored sample vectors)
-- threshold (distance cutoff, default of 0.3)
+- threshold (distance cutoff, default of 1.5)
 '''
-def classify(vector, registry, threshold=0.3):
+def classify(vector, registry, threshold= 5):
     '''
     Compare live hand vectors against stored samples.
     Return (gesture_name, distance) or (None, distance) if nothing is close enough to a stored gesture.
@@ -48,3 +48,4 @@ def classify(vector, registry, threshold=0.3):
     if best_dist < threshold:                   # SAFETY CHECK: Only trust and return if the closes distance is actually under the maximum threshold. If it is too far away return None instead.
         return best_name, best_dist
     return None, best_dist
+

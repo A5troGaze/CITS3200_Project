@@ -8,8 +8,8 @@ What this does:
   - Draws a bounding box + full skeleton (connected lines, not just dots) around them
   - Shows a live FPS counter so lag is visible while testing, not guessed at
   - Optionally writes the annotated stream to a video file
-  - Optionally exports per-frame landmark data as JSON, using the hand-off
-    schema the kinematics/gesture team will need: {frame_id, bbox, landmarks[33], timestamp}
+  - Optionally exports per-frame MediaPipe world landmarks as JSON:
+  {frame_id, timestamp_ms, leader_id, bbox, landmarks_world_m[33]}
 
 Before running:
   1. source ~/CITS3200/Dependencies/g1-env/bin/activate
@@ -18,16 +18,16 @@ Before running:
 
 Usage:
   # Live webcam, on-screen preview only:
-  python3 pose_test.py
+  python3 pose_test-world-landmarks.py
 
   # Live webcam, also write annotated output + landmarks:
-  python3 pose_test.py --output out.mp4 --export-landmarks out.json
+  python3 pose_test-world-landmarks.py --output out.mp4 --export-landmarks out.json
 
   # From a video file instead of webcam:
-  python3 pose_test.py --input test_clip.mp4 --output out.mp4
+  python3 pose_test-world-landmarks.py --input test_clip.mp4 --output out.mp4
 
   # If lag is still an issue, drop resolution further:
-  python3 pose_test.py --width 480 --height 360
+  python3 pose_test-world-landmarks.py --width 480 --height 360
 """
 
 import argparse
@@ -173,15 +173,11 @@ def main():
                 draw_skeleton(frame, landmarks, frame_w, frame_h)
 
                 if args.export_landmarks:
-                    # pose_world_landmarks = REAL 3D coordinates in metres,
-                    # anchored to the hip midpoint, independent of how close
-                    # the person is to the camera. This is what the client
-                    # asked for in the Week 5 meeting: actual joint dimensions
-                    # for mapping onto the robot's degrees of freedom, not
-                    # just where the joint appears on screen. This is what
-                    # gets exported — the on-screen drawing above still uses
-                    # the image-relative landmarks, since that's what pixel
-                    # positions need.
+                    # pose_world_landmarks are MediaPipe's estimated 3D landmark
+                    # positions in metres, relative to the midpoint of the hips.
+                    # These are exported for downstream pose retargeting and IK.
+                    # The on-screen drawing still uses image-relative landmarks
+                    # because those map directly to pixel positions.
                     world_landmarks = result.pose_world_landmarks[0]
 
                     all_frame_landmarks.append({

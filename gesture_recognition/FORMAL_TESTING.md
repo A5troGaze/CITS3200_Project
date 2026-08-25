@@ -69,11 +69,11 @@ Further repeat testing is required to determine whether this issue is consistent
 ## Live Camera Input
 
 ### Testing Environment
-- Operating System: Ubuntu 22 (Physical device)
-- Input method: Live camera feed
-- Gesture Recognition: MediaPipe Hand Landmarker
-- Classification Threshold: 1.5
-- Gesture Reference Data: data/gestures.json
+- Operating System: `Ubuntu 22 (Physical device)`
+- Input method: `Live camera feed`
+- Gesture Recognition: `MediaPipe Hand Landmarker`
+- Classification Threshold: `1.5`
+- Gesture Reference Data: `data/gestures.json`
 
 ### Test Procedure
 

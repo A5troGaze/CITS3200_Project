@@ -46,6 +46,28 @@ KEY_TO_GESTURE = {
     ord('8'): "move_backward_right_hand",
 }
 
+#== Define hand model ==========================================================
+HAND_CONNECTIONS = [
+    (0, 1), (1, 2), (2, 3), (3, 4),          # thumb
+    (0, 5), (5, 6), (6, 7), (7, 8),          # index finger
+    (5, 9), (9, 10), (10, 11), (11, 12),     # middle finger
+    (9, 13), (13, 14), (14, 15), (15, 16),   # ring finger
+    (13, 17), (17, 18), (18, 19), (19, 20),  # pinky
+    (0, 17) 
+]
+
+#== Draw 21-point hand skeleton ================================================
+def draw_skeleton(frame, result):
+    if not result.hand_landmarks:
+        return
+    h, w, _ = frame.shape
+    for hand_landmarks in result.hand_landmarks:
+        points = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
+        for start_idx, end_idx in HAND_CONNECTIONS:
+            cv2.line(frame, points[start_idx], points[end_idx], (0, 255, 0), 2)
+        for point in points:
+            cv2.circle(frame, point, 4, (0, 0, 255), -1)
+
 
 cap = cv2.VideoCapture(0)
 frame_timestamp_ms = 0
@@ -64,6 +86,8 @@ while cap.isOpened():
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
     frame_timestamp_ms += 33
     result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)
+
+    draw_skeleton(frame, result)
 
     cv2.putText(frame, "Press 1-8 to record, s to save+quit",
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -92,6 +116,8 @@ while cap.isOpened():
                 vector = landmarks_to_vector(result.hand_landmarks[0])
                 registry[gesture_name].append(vector.tolist())
                 collected += 1
+
+            draw_skeleton(frame, result)
 
             cv2.putText(frame, f"Capturing {gesture_name}: {collected}/{SAMPLES_PER_RECORDING}",
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)

@@ -60,7 +60,7 @@ while cap.isOpened():
                 cv2.line(frame, points[start_indx], points[end_indx], (0, 255, 0), 2)       # Draw a line from the first to the second point
 
             for point in points:                                                            # Likewise:
-                cv2.circle(frame, point, 4, (0, 255, 0), -1)                                # draw a circle at each point
+                cv2.circle(frame, point, 4, (0, 0, 255), -1)                                # draw a circle at each point
     # =================================
 
     #== Display in a frame ============

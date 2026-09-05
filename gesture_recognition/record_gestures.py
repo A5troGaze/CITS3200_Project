@@ -4,7 +4,7 @@ import os
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from gesture_core import landmarks_to_vector
+from gesture_core import landmarks_to_vector, draw_skeleton, HAND_CONNECTIONS
 
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "gestures.json")
@@ -46,27 +46,7 @@ KEY_TO_GESTURE = {
     ord('8'): "move_backward_right_hand",
 }
 
-#== Define hand model ==========================================================
-HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),          # thumb
-    (0, 5), (5, 6), (6, 7), (7, 8),          # index finger
-    (5, 9), (9, 10), (10, 11), (11, 12),     # middle finger
-    (9, 13), (13, 14), (14, 15), (15, 16),   # ring finger
-    (13, 17), (17, 18), (18, 19), (19, 20),  # pinky
-    (0, 17) 
-]
 
-#== Draw 21-point hand skeleton ================================================
-def draw_skeleton(frame, result):
-    if not result.hand_landmarks:
-        return
-    h, w, _ = frame.shape
-    for hand_landmarks in result.hand_landmarks:
-        points = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
-        for start_idx, end_idx in HAND_CONNECTIONS:
-            cv2.line(frame, points[start_idx], points[end_idx], (0, 255, 0), 2)
-        for point in points:
-            cv2.circle(frame, point, 4, (0, 0, 255), -1)
 
 
 cap = cv2.VideoCapture(0)

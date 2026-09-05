@@ -6,6 +6,7 @@ import os                                               # os
 import mediapipe as mp                                  # Core Mediapipe library
 from mediapipe.tasks import python                      # Mediapipe's Tasks API
 from mediapipe.tasks.python import vision               # Mediapipe's Tasks vision aspect
+from gesture_core import draw_skeleton, HAND_CONNECTIONS
 
 #== Path to the hand_landmarker model used for gesture recognition =====================================
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
@@ -50,17 +51,7 @@ while cap.isOpened():
     result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)                  # Return MediaPipe findings (a list of detected hands [21 landmark points])
 
     #== Draw results ==================
-    if result.hand_landmarks:
-        h, w, _ = frame.shape                                                           # Get height and width (discard channel count) from frame
-        for hand_landmarks in result.hand_landmarks:                                    # For each hand (Only 1 currently):
-
-            points = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]              # Get real pixel position
-
-            for start_indx, end_indx in HAND_CONNECTIONS:                                   # For each connected pair in defined hand model
-                cv2.line(frame, points[start_indx], points[end_indx], (0, 255, 0), 2)       # Draw a line from the first to the second point
-
-            for point in points:                                                            # Likewise:
-                cv2.circle(frame, point, 4, (0, 0, 255), -1)                                # draw a circle at each point
+    draw_skeleton(frame, result)
     # =================================
 
     #== Display in a frame ============

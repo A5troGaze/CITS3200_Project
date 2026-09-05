@@ -8,37 +8,15 @@ import os
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from gesture_core import landmarks_to_vector, classify
+from gesture_core import landmarks_to_vector, classify, draw_skeleton, HAND_CONNECTIONS
 
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "gestures.json")
 
-#== Define hand model ==========================================================
-HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),          # thumb
-    (0, 5), (5, 6), (6, 7), (7, 8),          # index finger
-    (5, 9), (9, 10), (10, 11), (11, 12),     # middle finger
-    (9, 13), (13, 14), (14, 15), (15, 16),   # ring finger
-    (13, 17), (17, 18), (18, 19), (19, 20),  # pinky
-    (0, 17) 
-]
-
-#== Draw 21-point hand skeleton ================================================
-def draw_skeleton(frame, result):
-    if not result.hand_landmarks:
-        return
-    h, w, _ = frame.shape
-    for hand_landmarks in result.hand_landmarks:
-        points = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
-        for start_idx, end_idx in HAND_CONNECTIONS:
-            cv2.line(frame, points[start_idx], points[end_idx], (0, 255, 0), 2)
-        for point in points:
-            cv2.circle(frame, point, 4, (0, 0, 255), -1)
-
-#== Command line args ===========================================================
-# Default: use the live camera (index 0), same as the rest of the team's scripts.
-# Pass --video <path> to test against a pre-recorded file instead (useful if your
-# machine/VM doesn't have camera access — the rest of the script behaves identically).
+'''== Command line args ===========================================================
+Default: use the live camera (index 0), same as the rest of the team's scripts.
+Pass --video <path> to test against a pre-recorded file instead (useful if your
+machine/VM doesn't have camera access — the rest of the script behaves identically).'''
 parser = argparse.ArgumentParser()
 parser.add_argument("--video", default=None, help="Path to a video file to use instead of the live camera")
 args = parser.parse_args()
@@ -66,10 +44,10 @@ landmarker = vision.HandLandmarker.create_from_options(options)  # Create the us
 cap = cv2.VideoCapture(args.video if args.video else 0)
 frame_timestamp_ms = 0
 
-#== Display is optional: some machines (e.g. headless VMs) can't open a GUI window.
-# On Linux, no DISPLAY env var means there's no X11/GUI available at all — calling
-# cv2.imshow() in that case crashes the whole process (not a catchable exception),
-# so we check for this BEFORE ever attempting to open a window, rather than after.
+'''== Display is optional: some machines (e.g. headless VMs) can't open a GUI window.
+On Linux, no DISPLAY env var means there's no X11/GUI available at all — calling
+cv2.imshow() in that case crashes the whole process (not a catchable exception),
+so we check for this BEFORE ever attempting to open a window, rather than after.'''
 display_enabled = True
 if os.name == "posix" and "DISPLAY" not in os.environ and "WAYLAND_DISPLAY" not in os.environ:
     display_enabled = False

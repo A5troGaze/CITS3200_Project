@@ -53,8 +53,8 @@ if os.name == "posix" and "DISPLAY" not in os.environ and "WAYLAND_DISPLAY" not 
     display_enabled = False
     print("(No display detected — running in console-only mode.)")
 
-last_gesture = None  # Tracks the previous frame's result so we only print on change
-best_overall_dist = float("inf")  # Tracks the smallest distance seen in the whole run, even on frames that never beat the threshold
+last_gesture = None                 # Tracks the previous frame's result so we only print on change
+best_overall_dist = float("inf")    # Tracks the smallest distance seen in the whole run, even on frames that never beat the threshold
 
 print("Recognizing gestures from " + ("camera (index 0)" if not args.video else f"video file: {args.video}"))
 print("Press 'q' to quit (if a display window is open), or Ctrl+C in the terminal.")

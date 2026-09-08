@@ -1,6 +1,7 @@
 '''Control mujoco model with registered hand signals'''
 
 #== Import Dependencies ==============================================================
+import argparse
 import json
 import os
 import sys
@@ -45,12 +46,21 @@ gesture_model = vision.HandLandmarker.create_from_options(options)  # Create use
 
 
 #== Set Up Camera / Video ============================================================
-stream = cv2.VideoCapture(0)
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--video",
+    default=None,
+    help="Path to a video file to use instead of the live camera"
+)
+args = parser.parse_args()
+
+stream = cv2.VideoCapture(args.video if args.video else 0)
 frame_timestamp_ms = 0
 
 display_enabled = True
 last_gesture = None
 best_overall_dist = float("inf")
+
 
 
 #== Load G1 Model ====================================================================

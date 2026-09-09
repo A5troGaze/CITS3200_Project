@@ -234,3 +234,58 @@ If this prints `All 5 dependencies OK` with no errors, the environment is full s
 - **Never commit anything from `~/CITS3200/Dependencies/`** to Git — it's intentionally outside the `Project` repo folder, so this shouldn't happen by accident, but don't manually copy those files into `Project` either.
 - The repo's `.gitignore` already excludes Python cache files, editor settings, OS junk files, and common data/output file types (`.pkl`, `.mp4`, etc.).
 - Development work happens on feature branches (e.g. `Gesture-Recog`), not directly on `main`
+
+## Person ID / MuJoCo bridge
+
+This is the extra setup needed for `person_id/leader_pose.py --mujoco` and
+`person_id/mujoco_link.py`: mirroring the leader's arms on a simulated G1.
+See `person_id/RUNNING_leader_pose.md` for how to actually run it once this
+is installed.
+
+### 1. Clone and build unitree_mujoco
+
+```bash
+cd ~/CITS3200/Dependencies
+git clone https://github.com/unitreerobotics/unitree_mujoco.git
+```
+
+Use the **Python simulator** (`simulate_python/`), not the C++ one
+(`simulate/`): it only needs `unitree_sdk2_python` and the `mujoco` pip
+package, both already in this venv from Step 5 above, so there is no extra
+C++ toolchain (`unitree_sdk2` C++, libyaml-cpp, a separate MuJoCo binary
+download) to install. No build step — it's run directly with `python3`.
+
+### 2. Point its config at the G1
+
+Edit `~/CITS3200/Dependencies/unitree_mujoco/simulate_python/config.py`:
+
+```python
+ROBOT = "g1"
+# ROBOT_SCENE is derived from ROBOT automatically: "../unitree_robots/g1/scene.xml"
+DOMAIN_ID = 1     # matches mujoco_link.py's --dds-domain default
+INTERFACE = "lo"  # matches mujoco_link.py's --dds-interface default
+ENABLE_ELASTIC_BAND = True  # arm-only mirroring: legs/waist are held, not balanced
+```
+
+`unitree_robots/g1/scene.xml` (confirmed by reading the file, not assumed)
+includes `g1_29dof.xml` — the same 29-DOF-no-hands variant
+`person_id/g1_joint_limits.py` is built from, *not* `scene_23dof.xml`.
+Before trusting `leader_pose.py --mujoco` output against this scene, run
+`check_dof_count()` (from `g1_joint_limits.py`) against that scene's joint
+names (or against a live `LowState_`'s `motor_state` indices) to confirm
+they still match — this is exactly the silent-mismatch case that function
+exists to catch if the scene file is ever swapped.
+
+### 3. Run it
+
+```bash
+cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
+python3 unitree_mujoco.py
+```
+
+A MuJoCo window opens with the G1 standing. Since this pipeline only
+commands the arms and holds legs/waist at whatever they currently are
+(never balances or walks), enable the elastic band (`ENABLE_ELASTIC_BAND`
+above) so the robot hangs instead of falling over: once loaded, press `9`
+to activate/release the band, `7` to lower the robot, `8` to lift it
+(these bindings are unitree_mujoco's own, not this project's).

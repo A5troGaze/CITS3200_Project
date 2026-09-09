@@ -3,7 +3,12 @@ Shared building blocks for the person_id camera pipeline.
 
 Everything here is a pure function or a plain-data class: nothing opens a
 camera or a window at import time, so this module can be unit-tested without
-a display, a webcam, or MediaPipe's native camera bindings.
+a display, a webcam, or MediaPipe's native camera bindings. cv2/mediapipe
+are imported lazily inside the functions that actually need them (not at
+module level), so LeaderTracker, the bbox helpers and FpsCounter are
+importable and testable even where cv2/mediapipe themselves aren't
+installed (e.g. this dev checkout, versus the VM where the rest of this
+pipeline actually runs).
 
 Used by leader_pose.py (and previously duplicated ~80% verbatim across
 pose_test.py, pose_test-world_landmarks.py and pose_test-multi-world-landmarks.py,
@@ -13,11 +18,6 @@ which this module replaces).
 import math
 import os
 import time
-
-import cv2
-import mediapipe as mp
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision as mp_vision
 
 # Standardised model location (see SETUP.md). Override with --model or the
 # CITS3200_MODELS_DIR environment variable if your model lives elsewhere.
@@ -57,6 +57,9 @@ def build_landmarker(model_path, num_people, min_detection_confidence,
                       min_presence_confidence, min_tracking_confidence):
     """MediaPipe PoseLandmarker in VIDEO mode. num_people=1 gives the old
     single-person behaviour; >1 gives multi-person detection."""
+    from mediapipe.tasks import python as mp_python
+    from mediapipe.tasks.python import vision as mp_vision
+
     base_options = mp_python.BaseOptions(model_asset_path=model_path)
     options = mp_vision.PoseLandmarkerOptions(
         base_options=base_options,
@@ -92,6 +95,8 @@ def bbox_area(bbox):
 
 def draw_skeleton(frame, landmarks, frame_w, frame_h, color=(0, 200, 0)):
     """Draw connected skeleton lines plus joint dots."""
+    import cv2
+
     points = [(int(lm.x * frame_w), int(lm.y * frame_h)) for lm in landmarks]
     for start_idx, end_idx in POSE_CONNECTIONS:
         if start_idx < len(points) and end_idx < len(points):
@@ -117,6 +122,8 @@ def open_capture(input_arg, width, height):
     passthrough is often bandwidth-limited, and forcing MJPG on a video file
     input can make some backends refuse to open it at all.
     """
+    import cv2
+
     video_source = int(input_arg) if str(input_arg).isdigit() else input_arg
     is_live_camera = isinstance(video_source, int)
 
@@ -152,6 +159,8 @@ def open_video_writer(output_path, fps, frame_w, frame_h):
     """Open an annotated-output VideoWriter, or None if output_path is falsy.
     Checked with isOpened() (defect 4) so a bad codec/path fails loudly
     instead of silently producing an empty file."""
+    import cv2
+
     if not output_path:
         return None
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")

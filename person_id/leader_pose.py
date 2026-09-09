@@ -63,9 +63,6 @@ import argparse
 import json
 import time
 
-import cv2
-import mediapipe as mp
-
 from pose_common import (
     FpsCounter,
     LeaderTracker,
@@ -161,6 +158,9 @@ def run_replay(args):
 
 
 def run_live(args):
+    import cv2
+    import mediapipe as mp
+
     if args.no_preview and args.num_people != 1:
         raise SystemExit("--no-preview requires --num-people 1 (manual leader selection needs the preview "
                           "window to click on; with one person there is nothing to click)")

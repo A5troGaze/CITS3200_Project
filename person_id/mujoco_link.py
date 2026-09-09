@@ -47,6 +47,15 @@ KP = None
 KD = None
 
 
+def step_toward(current, target, max_step):
+    """One publisher-tick interpolation step: move `current` toward
+    `target` by at most `max_step` (elementwise; same-shape arrays).
+    Pure function, extracted from _publisher_loop so it can be unit-tested
+    without DDS (see tests/test_mujoco_link_interp.py)."""
+    delta = np.clip(target - current, -max_step, max_step)
+    return current + delta
+
+
 class MujocoLink:
     def __init__(self, domain_id=1, interface="lo", dry_run=False):
         self.dry_run = dry_run
@@ -163,8 +172,7 @@ class MujocoLink:
                     self._published_q = np.array(
                         [self.latest_state.motor_state[i].q for i in range(29)]
                     )
-                delta = np.clip(target - self._published_q, -max_step_per_tick, max_step_per_tick)
-                self._published_q = self._published_q + delta
+                self._published_q = step_toward(self._published_q, target, max_step_per_tick)
 
                 cmd = self._default_lowcmd()
                 cmd.mode_pr = 0

@@ -197,7 +197,16 @@ def arm_angles(upper, fore, side, prev_yaw=0.0, yaw_clamp=math.radians(60)):
     # shoulder_roll limit ranges without needing a side-based sign flip
     # here (right arm's T-pose lateral component is already negative in
     # this shared torso frame).
-    shoulder_roll = math.atan2(ul, -uu)
+    # Gimbal lock at |shoulder_pitch| ~= 90 deg (arm pointing straight
+    # forward/back): lateral and up both go to ~0, so atan2 on two
+    # near-zero, noise-dominated values returns an arbitrary angle instead
+    # of the well-defined 0 the "arm straight forward" sanity check
+    # expects. cos_pitch (already computed above) is exactly the
+    # magnitude of (lateral, up), so it is the natural guard.
+    if cos_pitch < 1e-3:
+        shoulder_roll = 0.0
+    else:
+        shoulder_roll = math.atan2(ul, -uu)
 
     # Elbow: angle between the upper-arm and forearm direction vectors.
     # 0 when the arm is straight (upper and forearm point the same way),

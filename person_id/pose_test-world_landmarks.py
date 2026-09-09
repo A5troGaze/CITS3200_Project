@@ -39,6 +39,8 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 
+from mujoco_link import MujocoLink
+
 DEFAULT_MODEL_PATH = "/home/ubuntu/CITS3200/models/pose_landmarker.task"
 
 # MediaPipe's documented skeletal connections for the 33 pose landmarks —
@@ -102,6 +104,8 @@ def main():
     parser.add_argument("--height", type=int, default=480, help="Capture height")
     parser.add_argument("--export-landmarks", default=None, help="Optional path to dump per-frame landmarks as JSON")
     parser.add_argument("--no-preview", action="store_true", help="Don't open a live preview window (headless)")
+    parser.add_argument("--mujoco-link", action="store_true",
+                        help="Send detected world landmarks to a running Unitree MuJoCo simulator")
     args = parser.parse_args()
 
     video_source = int(args.input) if args.input.isdigit() else args.input
@@ -128,6 +132,7 @@ def main():
         writer = cv2.VideoWriter(args.output, fourcc, fps, (frame_w, frame_h))
 
     landmarker = build_landmarker(args.model)
+    mujoco_link = MujocoLink() if args.mujoco_link else None
 
     all_frame_landmarks = []
     frame_index = 0
@@ -171,6 +176,12 @@ def main():
                 cv2.putText(frame, "Leader", (x_min, max(y_min - 10, 0)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 215, 255), 2)
                 draw_skeleton(frame, landmarks, frame_w, frame_h)
+
+                if args.mujoco_link:
+                    # Send MediaPipe's real 3D world landmarks to the MuJoCo link.
+                    # This only connects the systems; it does not control robot joints yet.
+                    world_landmarks = result.pose_world_landmarks[0]
+                    mujoco_link.update_pose(frame_index, timestamp_ms, world_landmarks)
 
                 if args.export_landmarks:
                     # pose_world_landmarks are MediaPipe's estimated 3D landmark
@@ -221,6 +232,8 @@ def main():
         if not args.no_preview:
             cv2.destroyAllWindows()
         landmarker.close()
+        if mujoco_link is not None:
+            mujoco_link.close()
 
     print(f"Done. Processed {frame_index} frames.")
     if args.export_landmarks:

@@ -83,6 +83,7 @@ def main():
     landmarker = build_landmarker(args.model)
 
     frame_id = 0
+    start_time = time.time()
     print(f"Sending live pose landmarks to {args.host}:{args.port}")
     print(f"Using model: {args.model}")
     print("Press q in the camera window to stop.")
@@ -94,8 +95,9 @@ def main():
                 print("Failed to read frame from camera")
                 break
 
-            frame_id += 1
-            timestamp_ms = int(time.time() * 1000)
+            # Standardised across the pipeline (defect 9): ms since start,
+            # frame_id from 0 -- not epoch ms / frame_id from 1.
+            timestamp_ms = int((time.time() - start_time) * 1000)
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(
@@ -136,6 +138,8 @@ def main():
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
+
+            frame_id += 1
 
     finally:
         cap.release()

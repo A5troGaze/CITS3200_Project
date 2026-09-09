@@ -15,9 +15,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=5005)
+    parser.add_argument("--dds-domain", type=int, default=1, help="CycloneDDS domain ID for the MuJoCo bridge")
+    parser.add_argument("--dds-interface", default="lo", help="Network interface for the MuJoCo bridge")
     args = parser.parse_args()
 
-    mujoco_link = MujocoLink()
+    mujoco_link = MujocoLink(domain_id=args.dds_domain, interface=args.dds_interface)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.host, args.port))

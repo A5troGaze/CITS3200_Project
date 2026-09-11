@@ -2,29 +2,16 @@
 
 #== Import Dependencies ==============================================================
 import json
-import os
-import sys
 import time
+import sys
+import os
 import cv2
-
 import numpy as np
-import mujoco as mj
-import mujoco.viewer
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-# from unitree_sdk2py.core.channel import ChannelFactoryInitialize
-# from unitree_sdk2py.g1.loco.g1_loco_client import LocoClient
 
-from gesture_core import landmarks_to_vector, classify, draw_skeleton, HAND_CONNECTIONS
-
-'''
-#== Define SDK Parameters ===========================================================
-ChannelFactoryInitialize(0, "lo")
-sport_client = LocoClient()
-sport_client.SetTimeout(10.0)
-sport_client.Init()
-'''
+from gesture_core import landmarks_to_vector, classify, draw_skeleton
 
 
 #== Define Paths =====================================================================
@@ -63,12 +50,7 @@ last_gesture = None
 best_overall_dist = float("inf")
 
 
-#== Load G1 Model ====================================================================
-model = mj.MjModel.from_xml_path(G1_SCENE_PATH)
-data = mj.MjData(model)
-
-
-#== Find Actuator to target function ==
+#== Find Actuator to target function =================================================
 def find_actuator(model, keyword):
     for i in range(model.nu):                                       # For each actuator that the model (G1) possesses
         name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_ACTUATOR, i)
@@ -77,20 +59,20 @@ def find_actuator(model, keyword):
     return None                                                     # Else return None if matching actuator cannot be found
 
 
-
+#== Defined actions for testing signal reaction ======================================
 GESTURE_ACTIONS = {
-    "turn_right":               ("hip_yaw",        -0.3),
-    "turn_left":                ("hip_yaw",         0.3),
-    "move_right":               ("hip_roll",       -0.2),
-    "move_left":                ("hip_roll",        0.2),
-    "move_forward_left_hand":   ("left_shoulder",   0.5),
-    "move_forward_right_hand":  ("right_shoulder",  0.5),
-    "move_backward_left_hand":  ("left_shoulder",  -0.3),
-    "move_backward_right_hand": ("right_shoulder", -0.3)
+    "turn_right":               ("right_hip_yaw_joint",         1.5),
+    "turn_left":                ("left_hip_yaw_joint",         -1.5),
+    "move_right":               ("right_hip_roll_joint",        1.5),
+    "move_left":                ("left_hip_roll_joint",        -1.5),
+    "move_forward_left_hand":   ("left_shoulder_pitch_joint",  -0.5),
+    "move_forward_right_hand":  ("right_shoulder_pitch_joint", -0.5),
+    "move_backward_left_hand":  ("left_shoulder_pitch_joint",   0.5),
+    "move_backward_right_hand": ("right_shoulder_pitch_joint",  0.5)
 }
 
 
-#== 
+#== Apply the gesture's action to the simulated model ================================
 def apply_gesture(model, data, gesture_name):
     action = GESTURE_ACTIONS.get(gesture_name)
     if action is None:
@@ -103,79 +85,60 @@ def apply_gesture(model, data, gesture_name):
     data.ctrl[actuator_id] = target
 
 
-
+#== main app loop ===================================================================
 def main():
-    global frame_timestamp_ms, last_gesture, best_overall_dist, display_enabled
+    
+    while stream.isOpened() and viewer.is_running():                            # Using the camera stream
+        ok, frame = stream.read()
+        if not ok:
+            break
 
+        #== Prep intake from camera =============================================
+        frame = cv2.flip(frame, 1)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        frame_timestamp_ms += 33
+        result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
 
-    with mj.viewer.launch_passive(model, data) as viewer:
-        while stream.isOpened() and viewer.is_running():
-            ok, frame = stream.read()
-            if not ok:
-                break
-
-            frame = cv2.flip(frame, 1)
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-            frame_timestamp_ms += 33
-            result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
-
-            #== Recognise gesture
-            gesture_name = None
-            if result.hand_landmarks:
-                vector = landmarks_to_vector(result.hand_landmarks[0])
-                gesture_name, best_overall_dist = classify(vector, registry)
-
-            '''
-            if gesture_name == "turn_right":
-                sport_client.Move(0, 0, -0.3)
-            elif gesture_name == "turn_left":
-                sport_client.Move(0, 0, 0.3)
-            elif gesture_name == "move_right":
-                sport_client.Move(0, -0.3, 0)
-            elif gesture_name == "move_left":
-                sport_client.Move(0, -0.3, 0)
-            elif gesture_name == "move_backward_right_hand":
-                sport_client.Move(-0.3, 0, 0)
-            elif gesture_name == "move_backward_left_hand":
-                sport_client.Move(-0.3, 0, 0)
-            elif gesture_name == "move_forward_right_hand":
-                sport_client.Move(0.3, 0, 0)
-            elif gesture_name == "move_forward_left_hand":
-                sport_client.Move(0.3, 0, 0)'''
+        #== Recognise gesture ===================================================
+        gesture_name = None
+        if result.hand_landmarks:
+            vector = landmarks_to_vector(result.hand_landmarks[0])
+            gesture_name, best_overall_dist = classify(vector, registry)
             
-            #== React to gesture
-            if gesture_name is not None and gesture_name != last_gesture:
-                print(f"Gesture: {gesture_name} (dist={best_overall_dist:.2f})")
-                apply_gesture(model, data, gesture_name)
-                last_gesture = gesture_name
-            elif gesture_name is None:
-                last_gesture = None
+        #== React to gesture ====================================================
+        if gesture_name is not None and gesture_name != last_gesture:
+            print(f"Gesture: {gesture_name} (dist={best_overall_dist:.2f})")
+            apply_gesture(model, data, gesture_name)
+            last_gesture = gesture_name
+        elif gesture_name is None:
+            last_gesture = None
 
-            #==
-            mj.mj_step(model, data)
-            viewer.sync()
+        #== Step the model to next move ========================================
+        mj.mj_step(model, data)
+        viewer.sync()
 
-            #==
-            if display_enabled:
-                draw_skeleton(frame, result)
-                label = gesture_name or "no match"
-                cv2.putText(frame, f"Gesture: {label}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-                cv2.imshow("Gesture Control", frame)
+        #== Display gesture skeleton outline
+        if display_enabled:
+            draw_skeleton(frame, result)
+            label = gesture_name or "no match"
+            cv2.putText(frame, f"Gesture: {label}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+            cv2.imshow("Gesture Control", frame)
 
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
-                break
-            elif key == ord('d'):
-                display_enabled = not display_enabled
-                if not display_enabled:
-                    cv2.destroyWindow("Gesture Control")
+        #== Exit and dis/enable display ========================================
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        elif key == ord('d'):
+            display_enabled = not display_enabled
+            if not display_enabled:
+                cv2.destroyWindow("Gesture Control")
 
     stream.release()
     cv2.destroyAllWindows()
 
 
 
-#== Run ==
+#== Run ============================================================================
 if __name__ == "__main__":
     main()

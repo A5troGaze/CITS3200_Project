@@ -79,14 +79,14 @@ def find_actuator(model, keyword):
 
 #== Defined actions for testing signal reaction ======================================
 GESTURE_ACTIONS = {
-    "turn_right":               ("hip_yaw",        -0.3),
-    "turn_left":                ("hip_yaw",         0.3),
-    "move_right":               ("hip_roll",       -0.2),
-    "move_left":                ("hip_roll",        0.2),
-    "move_forward_left_hand":   ("left_shoulder",   0.5),
-    "move_forward_right_hand":  ("right_shoulder",  0.5),
-    "move_backward_left_hand":  ("left_shoulder",  -0.3),
-    "move_backward_right_hand": ("right_shoulder", -0.3)
+    "turn_right":               ("right_hip_yaw_joint",         1.5),
+    "turn_left":                ("left_hip_yaw_joint",         -1.5),
+    "move_right":               ("right_hip_roll_joint",        1.5),
+    "move_left":                ("left_hip_roll_joint",        -1.5),
+    "move_forward_left_hand":   ("left_shoulder_pitch_joint",  -0.5),
+    "move_forward_right_hand":  ("right_shoulder_pitch_joint", -0.5),
+    "move_backward_left_hand":  ("left_shoulder_pitch_joint",   0.5),
+    "move_backward_right_hand": ("right_shoulder_pitch_joint",  0.5)
 }
 
 

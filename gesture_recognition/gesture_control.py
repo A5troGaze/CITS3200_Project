@@ -7,8 +7,8 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
-from simulation_control import SimController
-from real_control import RealController
+from simulation_controller import SimController
+from real_controller import RealController
 
 
 
@@ -74,7 +74,7 @@ def main():
 
         draw_skeleton(frame, result)
         cv2.putText(frame, f"Gesture: {gesture_name or 'no match'}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.imshow("Gesture Control", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

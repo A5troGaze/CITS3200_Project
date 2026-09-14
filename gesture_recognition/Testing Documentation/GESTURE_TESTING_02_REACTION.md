@@ -2,11 +2,12 @@
 
 ## Purpose
 
-The purpose of this test was to verify whether `react_to_gestures.py` can will take gesture commands from recorded MP4 videos and the live camera feed and trigger simulated reactions corresponding to the gestures in MuJoCo.
+The purpose of this test was to verify whether `react_to_gestures.py` can take gesture commands from recorded MP4 videos and the live camera feed and trigger simulated reactions corresponding to the gestures in MuJoCo.
 
 The test focuses on the complete pipeline:
 
 MP4 video → Gesture Recognition → Gesture Action Mapping → MuJoCo G1 Reaction
+
 
 ## Video File Input
 
@@ -20,7 +21,6 @@ MP4 video → Gesture Recognition → Gesture Action Mapping → MuJoCo G1 React
 - Gesture classification threshold: 3.0
 - Branch: `Simulation`
 
-For turn gestures, `waist_yaw_joint` was used during testing to provide a visible turning reaction in the simulation.
 
 ### Test Procedure
 ---
@@ -33,36 +33,36 @@ For each test, the recognised gesture and distance were observed in the terminal
 
 ### Test Results
 ---
-| Gesture | Recognition | Expected Reaction | Actual Reaction | Result |
+| Gesture | Recognition | Actual Reaction | Result | Runtime Issue |
 |---|---|---|---|---|
-| `move_left` | Correct (2.68) | Robot reacts/moves left | No obvious robot movement | FAIL |
-| `move_right` | Initially detected as `turn_right`, then correctly detected as `move_right` (2.35) | Robot reacts/moves right | Small rightward movement of the upper body and arms | NEEDS IMPROVEMENT |
-| `turn_left` | Correct (2.49) | Robot turns/reacts left | Small leftward body movement | NEEDS IMPROVEMENT |
-| `turn_right` | Correct (1.90) | Robot turns/reacts right | Small rightward body movement | NEEDS IMPROVEMENT |
-| `move_forward_left_hand` | Correct (2.08) | Left arm moves forward | Left arm moved backward | FAIL |
-| `move_backward_left_hand` | Test interrupted | Left arm moves backward | No reaction observed because the program aborted | TEST INTERRUPTED |
-| `move_forward_right_hand` | Correct (2.50) | Right arm moves forward | Right arm moved backward | FAIL |
-| `move_backward_right_hand` | Correct (approximately 2.95–2.98) | Right arm moves backward | Right arm moved forward/upward | FAIL |
----
+| `move_left` | Correct (2.68) | Left leg moved inward and the body moved slightly to the left. Clear visible response. | SUCCESS | Segmentation fault after test |
+| `move_right` | Initially detected as `turn_right`, then correctly detected as `move_right` (2.35) | Clear response opposite to `move_left`. | SUCCESS | None observed |
+| `turn_left` | Correct (2.49) | Clear and noticeable simulated model response. | SUCCESS | Segmentation fault after test |
+| `turn_right` | Correct (1.90) | Body moved slightly to the right and the right leg moved outward. | SUCCESS | None observed |
+| `move_forward_left_hand` | Correct (2.08) | Left arm raised clearly. | SUCCESS | None observed |
+| `move_backward_left_hand` | Not recognised | No reaction triggered because the gesture was not recognised. | FAILURE | Segmentation fault after test |
+| `move_forward_right_hand` | Correct (2.50) | Right arm raised clearly. | SUCCESS | None observed |
+| `move_backward_right_hand` | Recognised, but unstable (approximately 2.95–2.98) | Right arm moved backward clearly. | SUCCESS | Segmentation fault after test |
+
+
 ### Observations
 ---
-The gesture recognition component successfully recognised most of the test gestures. However, some recognition results were close to the classification threshold, particularly the backward hand gestures.
+The updated gesture reactions were generally clearer and easier to observe in the MuJoCo simulation. Seven of the eight recorded gesture videos were recognised and produced visible simulated responses.
 
-The MuJoCo simulation successfully demonstrated that recognised gestures can trigger robot reactions. However, several issues were identified:
+`move_backward_left_hand` was not successfully recognised during this round of testing, so its corresponding simulation reaction could not be verified.
 
-- `move_left` did not produce an obvious robot reaction.
-- `move_right`, `turn_left`, and `turn_right` produced visible but relatively small body movements.
-- The forward and backward arm actions appear to use reversed actuator directions. Both forward hand gestures caused the corresponding arm to move backward, while `move_backward_right_hand` caused the right arm to move forward/upward.
-- `move_backward_left_hand` could not be fully tested because the program aborted before a valid reaction was observed.
-- Several test runs ended with errors such as `Segmentation fault (core dumped)` or `Aborted (core dumped)`, indicating a stability issue in the current simulation/testing environment.
+`move_backward_right_hand` was recognised, but the recognition distance remained close to the classification threshold (approximately 2.95–2.98), indicating that recognition of the backward gesture was less stable.
+
+Several test runs still ended with `Segmentation fault (core dumped)`. This occurred after testing `move_left`, `turn_left`, `move_backward_left_hand`, and `move_backward_right_hand`. The simulation stability issue therefore remains present.
+
 
 ### Conclusion
 ---
-The testing confirmed that the complete pipeline from recorded video input to MuJoCo robot reaction is functioning. Most gestures can be recognised and can trigger a response from the simulated G1 robot.
+The updated testing confirmed that the recorded-video gesture recognition pipeline can successfully trigger visible reactions in the MuJoCo G1 simulation. Seven of the eight tested gestures were recognised and produced clear simulated responses.
 
-However, the current gesture-to-action mappings still require improvement. In particular, the movement directions for the arm gestures should be corrected, and the reactions for left/right movement and turning should be made clearer. The program stability issue observed during several test runs should also be investigated.
+The updated gesture reaction values made the simulated movements easier to observe compared with the previous testing. However, recognition of the backward gestures remains less reliable, particularly `move_backward_left_hand`, which was not recognised during this test.
 
-Further changes and retesting are required before the gesture reactions can be considered reliable.
+Intermittent segmentation faults were also still observed during several test runs. Further investigation is required to determine the cause of these crashes.
 
 
 

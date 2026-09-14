@@ -9,6 +9,11 @@ from mediapipe.tasks.python import vision
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
 from simulation_controller import SimController
 from real_controller import RealController
+from webcam_source import WebcamSource
+# RealsenseSource is imported lazily inside build_camera() -- pyrealsense2
+# has no official macOS wheels, so importing it here would break running
+# in "sim" mode on a machine (like a laptop) that will never touch the
+# real robot's camera.
 
 
 
@@ -31,6 +36,18 @@ def build_controller(backend):
     raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
 
 
+def build_camera(backend):
+    if backend == "sim":
+        return WebcamSource()
+    if backend == "real":
+        # Imported here, not at the top of the file, so that running in
+        # "sim" mode never requires pyrealsense2 to be installed (it has
+        # no official macOS wheel -- see realsense_source.py).
+        from realsense_source import RealsenseSource
+        return RealsenseSource()
+    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
         print("Usage: python gesture_control.py [sim|real]")
@@ -40,6 +57,9 @@ def main():
     controller = build_controller(sys.argv[1])
     controller.init()
     controller.start()
+
+    camera = build_camera(sys.argv[1])
+    camera.init()
 
     with open(HAND_MODEL_DATA_PATH) as f:
         registry = json.load(f)
@@ -52,11 +72,10 @@ def main():
     )
     gesture_model = vision.HandLandmarker.create_from_options(options)  # Create useable object from definition
 
-    stream = cv2.VideoCapture(0)
     frame_timestamp_ms = 0
 
-    while stream.isOpened():
-        ok, frame = stream.read()
+    while True:
+        ok, frame = camera.read()
         if not ok:
             break
         frame = cv2.flip(frame, 1)
@@ -81,7 +100,7 @@ def main():
             break
 
     controller.stop()
-    stream.release()
+    camera.release()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":

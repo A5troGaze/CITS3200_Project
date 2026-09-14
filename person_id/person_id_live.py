@@ -1,4 +1,10 @@
-"""Select a leader with MediaPipe and drive conservative G1 arm targets."""
+"""Select and track a leader, then drive their arm pose in G1 MuJoCo.
+
+MediaPipe detects up to ``--num-people`` poses. The tester clicks a detected
+person to select the leader; subsequent frames match that leader using bounding-
+box centroid distance. Only the selected leader's 33 world landmarks are
+retargeted. Use ``--dry-run`` to test detection without CycloneDDS or MuJoCo.
+"""
 
 import argparse
 import math
@@ -18,6 +24,7 @@ WINDOW_NAME = "Leader Pose Control - click leader, q to quit"
 DEFAULT_MODEL = os.path.expanduser("~/CITS3200/Dependencies/Models/pose_landmarker.task")
 
 def landmarks_to_bbox(landmarks, width, height, padding=20):
+    # Convert normalized image landmarks to a pixel box clamped to frame edges.
     xs = [lm.x * width for lm in landmarks]
     ys = [lm.y * height for lm in landmarks]
     return (
@@ -73,6 +80,7 @@ def main():
 
     controller = None
     if not args.dry_run:
+        # Dry-run mode skips DDS entirely and exercises only detection and maths.
         controller = MujocoPoseController(args.domain_id, args.interface)
         print("Waiting for MuJoCo low-state messages...")
         try:
@@ -96,7 +104,7 @@ def main():
     frame_index = 0
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
     started = time.monotonic()
-    was_tracking = False
+    was_tracking = False  # Tracks whether a command must be cleared on pose loss.
 
     try:
         while True:
@@ -106,6 +114,7 @@ def main():
             height, width = frame.shape[:2]
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            # Camera timestamps use elapsed time; files use their frame rate.
             timestamp = (
                 int((time.monotonic() - started) * 1000)
                 if isinstance(source, int)
@@ -120,6 +129,7 @@ def main():
                 detections.append({"bbox": box, "centroid": centroid(box), "world": world})
 
             if click["point"] is not None:
+                # A new click deliberately replaces any currently selected leader.
                 x, y = click["point"]
                 click["point"] = None
                 choices = [d for d in detections if d["bbox"][0] <= x <= d["bbox"][2]
@@ -130,12 +140,15 @@ def main():
 
             selected = None
             if leader["centroid"] is not None and detections:
+                # Re-identify the leader using the nearest detected box centroid.
                 candidate = min(detections, key=lambda d: distance(d["centroid"], leader["centroid"]))
                 if distance(candidate["centroid"], leader["centroid"]) <= args.max_match_distance:
                     selected = candidate
                     leader = {"centroid": candidate["centroid"], "lost": 0}
 
             if leader["centroid"] is not None and selected is None:
+                # Preserve identity briefly for reacquisition after an occlusion.
+                # Arm targets are still cleared immediately while pose data is absent.
                 leader["lost"] += 1
                 if leader["lost"] > args.lost_frames:
                     leader = {"centroid": None, "lost": 0}
@@ -152,6 +165,7 @@ def main():
                     xyz = mediapipe_landmarks_to_xyz(selected["world"])
                     targets = retarget_arms_indexed(xyz)
                 except ValueError as exc:
+                    # Never publish malformed or non-finite landmark-derived targets.
                     print(f"Frame {frame_index} skipped: {exc}")
                     if controller and was_tracking:
                         controller.clear_targets()
@@ -164,6 +178,7 @@ def main():
                     cv2.putText(frame, summary, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.45, (255, 255, 255), 1)
             elif controller and was_tracking:
+                # No valid selected pose: return the controlled joints toward startup.
                 controller.clear_targets()
                 was_tracking = False
 
@@ -172,6 +187,7 @@ def main():
                 break
             frame_index += 1
     finally:
+        # Ensure simulator commands stop and the arms return even after Ctrl-C/error.
         if controller:
             controller.return_to_start()
             controller.stop()

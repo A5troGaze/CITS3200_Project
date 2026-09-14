@@ -1,4 +1,9 @@
-"""MuJoCo-only integration test for the DDS controller."""
+"""Manual MuJoCo integration test for CycloneDDS communication.
+
+Requires the Unitree MuJoCo simulator to be running with matching DDS settings.
+The tester must visually confirm that the left arm moves smoothly and returns
+to its starting position. This test must not be run against a real robot.
+"""
 
 import argparse
 import time
@@ -16,6 +21,7 @@ def main():
         controller.init()
         controller.start()
         print("Connected; applying a conservative left-arm target...")
+        # A fixed target isolates DDS/controller behaviour from retargeting maths.
         controller.set_targets({LEFT_SHOULDER_PITCH: -0.5, LEFT_ELBOW: 0.3})
         time.sleep(3.0)
     except TimeoutError as exc:

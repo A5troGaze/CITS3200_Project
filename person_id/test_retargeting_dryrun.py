@@ -1,4 +1,8 @@
-"""Assertion-based unit tests for first-pass arm retargeting."""
+"""Single mathematical sanity check using a synthetic MediaPipe T-pose.
+
+This verifies one known pose without requiring MediaPipe, CycloneDDS, or MuJoCo.
+Passing it does not validate other poses or the simulator integration.
+"""
 
 import math
 import numpy as np
@@ -11,6 +15,7 @@ from pose_retargeting import (
 
 
 def t_pose():
+    # Only the shoulders, elbows, wrists, and hips are used by retargeting.
     xyz = np.zeros((33, 3))
     xyz[11], xyz[12] = [-0.2, 0.5, 0], [0.2, 0.5, 0]
     xyz[13], xyz[14] = [-0.5, 0.5, 0], [0.5, 0.5, 0]
@@ -21,6 +26,7 @@ def t_pose():
 
 def main():
     result = retarget_arms_indexed(t_pose())
+    # Expected T-pose: straight elbows, zero pitch, and mirrored 90-degree rolls.
     assert abs(result[LEFT_SHOULDER_PITCH]) < 1e-6
     assert abs(result[RIGHT_SHOULDER_PITCH]) < 1e-6
     assert math.isclose(result[LEFT_SHOULDER_ROLL], math.pi / 2, abs_tol=1e-6)

@@ -1,4 +1,9 @@
-"""CycloneDDS controller for sending conservative G1 upper-body targets to MuJoCo."""
+"""CycloneDDS controller for sending conservative G1 arm targets to MuJoCo.
+
+This prototype is intended for the Unitree MuJoCo simulator, not a real robot.
+It commands six arm joints, holds every other joint at its startup position,
+clamps targets to configured limits, and rate-limits movement.
+"""
 
 import math
 import threading
@@ -14,9 +19,9 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
 from unitree_sdk2py.utils.crc import CRC
 
 
-G1_NUM_MOTOR = 29
+G1_NUM_MOTOR = 29  # Full G1 motor count; only six arm joints are targeted.
 
-# G1 29-DOF motor indices used by this prototype.
+# Motor indices for the six joints controlled by this prototype.
 LEFT_SHOULDER_PITCH = 15
 LEFT_SHOULDER_ROLL = 16
 LEFT_ELBOW = 18
@@ -33,7 +38,7 @@ CONTROLLED_JOINTS = {
     RIGHT_ELBOW,
 }
 
-# Conservative position limits from the G1 29-DOF joint reference.
+# Position limits from the G1 29-DOF joint reference, in radians.
 POSITION_LIMITS = {
     LEFT_SHOULDER_PITCH: (-3.0892, 2.6704),
     LEFT_SHOULDER_ROLL: (-1.5882, 2.2515),
@@ -64,6 +69,7 @@ class Mode:
 
 
 def _clamp(index, value):
+    # Reject unsupported joints and non-finite values before publishing to DDS.
     if index not in POSITION_LIMITS:
         raise ValueError(f"Motor {index} is not an allowed upper-body target")
     if not math.isfinite(value):
@@ -96,8 +102,8 @@ class MujocoPoseController:
         self.stop_event = threading.Event()
         self.lock = threading.Lock()
         self.targets = {}
-        self.hold_positions = None
-        self.command_positions = None
+        self.hold_positions = None  # First received position for all 29 joints.
+        self.command_positions = None  # Published positions as they ramp to targets.
         self.thread = None
         self.crc = CRC()
         self.low_cmd = unitree_hg_msg_dds__LowCmd_()
@@ -109,6 +115,7 @@ class MujocoPoseController:
         self.subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.subscriber.Init(self._on_low_state, 10)
 
+        # Fail clearly instead of waiting forever when MuJoCo is not publishing.
         if not self.ready.wait(timeout):
             raise TimeoutError(
                 "No rt/lowstate received. Check that unitree_mujoco is running "
@@ -118,6 +125,7 @@ class MujocoPoseController:
     def _on_low_state(self, msg):
         self.low_state = msg
         if not self.ready.is_set():
+            # Capture the first simulator state as the safe startup/return pose.
             self.mode_machine = msg.mode_machine
             self.hold_positions = [msg.motor_state[i].q for i in range(G1_NUM_MOTOR)]
             self.command_positions = list(self.hold_positions)
@@ -150,6 +158,7 @@ class MujocoPoseController:
         while time.monotonic() < deadline:
             with self.lock:
                 positions = list(self.command_positions)
+            # Uncontrolled joints are omitted because they never leave startup.
             if all(
                 abs(positions[index] - self.hold_positions[index]) <= tolerance
                 for index in CONTROLLED_JOINTS
@@ -164,6 +173,7 @@ class MujocoPoseController:
             self.thread.join(timeout=2.0)
 
     def _run(self):
+        # Fixed-rate loop compensating for the time spent constructing each command.
         next_tick = time.monotonic()
         while not self.stop_event.is_set():
             self._write_once()
@@ -178,8 +188,10 @@ class MujocoPoseController:
         self.low_cmd.mode_machine = self.mode_machine
 
         for index in range(G1_NUM_MOTOR):
+            # Unspecified joints continuously hold their captured startup position.
             desired = targets.get(index, self.hold_positions[index])
             current = self.command_positions[index]
+            # Limit each step to avoid an instantaneous jump between video frames.
             delta = min(max(desired - current, -self.max_command_step), self.max_command_step)
             with self.lock:
                 self.command_positions[index] = current + delta

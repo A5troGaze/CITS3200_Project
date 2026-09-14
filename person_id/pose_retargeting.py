@@ -1,4 +1,9 @@
-"""Conservative MediaPipe world-landmark to G1 arm retargeting."""
+"""Convert 33 MediaPipe world landmarks into six G1 arm-joint targets.
+
+The conversion estimates shoulder pitch, shoulder roll, and elbow flexion for
+both arms relative to the person's torso. It does not control shoulder yaw,
+wrists, waist, or legs, and it is not a full inverse-kinematics solver.
+"""
 
 import math
 import numpy as np
@@ -12,6 +17,7 @@ RIGHT_SHOULDER_PITCH = 22
 RIGHT_SHOULDER_ROLL = 23
 RIGHT_ELBOW = 25
 
+# MediaPipe indices used to construct the torso and both arm chains.
 L_SHOULDER, R_SHOULDER = 11, 12
 L_ELBOW, R_ELBOW = 13, 14
 L_WRIST, R_WRIST = 15, 16
@@ -19,6 +25,7 @@ L_HIP, R_HIP = 23, 24
 
 
 def _validated_xyz(values):
+    # Detect incorrect shape, non-numeric values, NaN, and infinity early.
     try:
         xyz = np.asarray(values, dtype=float)
     except (TypeError, ValueError) as exc:
@@ -33,17 +40,19 @@ def _validated_xyz(values):
 def _unit(vector, label):
     norm = float(np.linalg.norm(vector))
     if norm < 1e-6:
+        # Coincident landmarks cannot define a reliable limb direction.
         raise ValueError(f"Degenerate {label} landmarks")
     return vector / norm
 
 
 def _torso_frame(xyz):
+    # Build person-relative right/up/forward axes, independent of camera facing.
     shoulder_mid = (xyz[L_SHOULDER] + xyz[R_SHOULDER]) / 2.0
     hip_mid = (xyz[L_HIP] + xyz[R_HIP]) / 2.0
     right = _unit(xyz[R_SHOULDER] - xyz[L_SHOULDER], "shoulder")
     up_seed = _unit(shoulder_mid - hip_mid, "torso")
     forward = _unit(np.cross(right, up_seed), "torso-frame")
-    up = _unit(np.cross(forward, right), "torso-frame")
+    up = _unit(np.cross(forward, right), "torso-frame")  # Re-orthogonalize.
     return right, up, forward
 
 
@@ -83,6 +92,7 @@ def retarget_arms_indexed(values):
 
 
 def json_landmarks_to_xyz(landmarks):
+    # Convert exported JSON dictionaries containing x/y/z fields.
     if not isinstance(landmarks, list) or len(landmarks) != 33:
         raise ValueError("Expected a list containing 33 world landmarks")
     try:
@@ -92,6 +102,7 @@ def json_landmarks_to_xyz(landmarks):
 
 
 def mediapipe_landmarks_to_xyz(landmarks):
+    # Convert PoseLandmarker objects containing .x/.y/.z attributes.
     if landmarks is None or len(landmarks) != 33:
         raise ValueError("Expected 33 MediaPipe world landmarks")
     try:

@@ -52,6 +52,7 @@ class SimController(AbstractGestureController):
         self.current_gesture = None                 # current gesture storage
         self.crc = CRC()                            # checksum calculator
         self.low_cmd = unitree_hg_msg_dds__LowCmd_()# actual messaging object
+        self._stopped = False                       # set by stop(); tells _write() to quit sending new commands
 
     def init(self):
         ChannelFactoryInitialize(1, "lo")           # mujoco simulation: loopback
@@ -76,9 +77,17 @@ class SimController(AbstractGestureController):
         self.current_gesture = gesture_name
 
     def stop(self):
-        pass  # TODO: graceful shutdown if needed
+        # Stop sending new motor commands so the background thread doesn't
+        # keep repeating the last gesture's pose forever after the program
+        # has otherwise shut down. We don't try to kill self.thread_ itself
+        # (RecurrentThread's stop API isn't something we've confirmed), we
+        # just make _write() a no-op from here on.
+        self._stopped = True
 
     def _write(self):
+        if self._stopped:
+            return
+
         self.time_ += self.control_dt_
         self.low_cmd.mode_pr = Mode.PR
         self.low_cmd.mode_machine = self.mode_machine_
@@ -101,7 +110,6 @@ class SimController(AbstractGestureController):
                 self.low_cmd.motor_cmd[i].dq = 0.0
                 self.low_cmd.motor_cmd[i].kp = Kp[i]
                 self.low_cmd.motor_cmd[i].kd = Kd[i]
-            # TODO: apply self.current_gesture's real joint trajectory here
 
         self.low_cmd.crc = self.crc.Crc(self.low_cmd)
         self.lowcmd_publisher_.Write(self.low_cmd)

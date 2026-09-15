@@ -31,7 +31,7 @@ Each of the eight gesture videos was tested individually using:
 For each test, the recognised gesture and distance were observed in the terminal, while the corresponding G1 reaction was observed in the MuJoCo viewer.
 
 
-### Test Results
+### Test Results [14/09/2026]: Post Gesture Reassignment
 ---
 | Gesture | Recognition | Actual Reaction | Result | Runtime Issue |
 |---|---|---|---|---|
@@ -84,7 +84,28 @@ Intermittent segmentation faults were also still observed during several test ru
 2. Hold the target gesture steadily for approximately 7 - 10 seconds.
 3. Watch specified reaction take place in Mujoco simulation and take note whether the expected actuator defined in `GESTURE_ACTIONS` is moving.
 
-### Test Results
+### Test Results [11/09/2026] - Pre Gesture Reassignment
+---
+| Gesture | Recognition | Expected Reaction | Actual Reaction | Result |
+|---|---|---|---|---|
+| `move_left` | Correct (1.27) | **Left hip roll actuator** turns _inward_ | Simulated G1 **left hip roll actuator** turned inward | SUCCESS |
+| `move_right` | Correct (1.13) | **Right hip roll actuator** turns _inward_  | Simulated G1 **right hip roll actuator** turned inward | SUCCESS |
+| `turn_left` | Correct (1.45) | **Left hip yaw actuator** turns _inward_  | Simulated G1 **left hip yaw actuator** turned inward | SUCCESS |
+| `turn_right` | Correct (1.09) | **Right hip yaw actuator** moves _inward_ | Simulated G1 **right hip yaw actuator** turned inward | SUCCESS |
+| `move_forward_left_hand` | Correct (0.69) | **Left shoulder pitch actuator** raises left hand upward | Simulated G1 **left shoulder pitch actuator** raised left arm upward | SUCCESS |
+| `move_backward_left_hand` | Registered as `move_forward_right_hand` for a split second then fixed on `move_backward_left_hand` | **Left shoulder pitch actuator** sends arm backward | Simulated G1 **left shoulder pitch actuator** sent arm backward **AND** **right shoulder pitch actuator** raised right arm upward | **FAILURE** |
+| `move_forward_right_hand` | Correct (1.01) | **Right shoulder pitch actuator** raises right hand upward | Simulated G1 **right shoulder pitch actuator** raised right arm upward | SUCCESS |
+| `move_backward_right_hand` | Registered as `move_forward_left_hand` for a split second then fixed on `move_backward_right_hand` | **Right shoulder pitch actuator** sends arm backward | Simulated G1 **right shoulder pitch actuator** sent arm backward **AND** **left shoulder pitch actuator** raised right arm upward | **FAILURE** |
+---
+### Observations
+---
+One gesture being mistaken for another causes another action to start up and run. Causes two commands to be run. Should not work that way. Same problem as previous round of testing. Suggested fix has not been implemented yet.
+
+### Conclusion
+---
+Testing proved that the correct command was being registered via hand signals to the simulation. Same problem as last time persisted as the suggested fix had not been implemented yet. Suggested fix should be implemented before next phase. 
+
+### Test Results [15/09/2026] - Post Gesture Reassignment
 ---
 | Gesture | Recognition | Expected Reaction | Actual Reaction | Result |
 |---|---|---|---|---|

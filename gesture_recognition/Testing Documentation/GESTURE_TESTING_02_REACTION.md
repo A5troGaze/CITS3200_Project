@@ -40,7 +40,7 @@ For each test, the recognised gesture and distance were observed in the terminal
 | `turn_left` | Correct (2.49) | Clear and noticeable simulated model response. | SUCCESS | Segmentation fault after test |
 | `turn_right` | Correct (1.90) | Body moved slightly to the right and the right leg moved outward. | SUCCESS | None observed |
 | `move_forward_left_hand` | Correct (2.08) | Left arm raised clearly. | SUCCESS | None observed |
-| `move_backward_left_hand` | Not recognised | No reaction triggered because the gesture was not recognised. | FAILURE | Segmentation fault after test |
+| `move_backward_left_hand` | Not recognised | No reaction triggered because the gesture was not recognised. | **FAILURE** | Segmentation fault after test |
 | `move_forward_right_hand` | Correct (2.50) | Right arm raised clearly. | SUCCESS | None observed |
 | `move_backward_right_hand` | Recognised, but unstable (approximately 2.95–2.98) | Right arm moved backward clearly. | SUCCESS | Segmentation fault after test |
 
@@ -114,14 +114,14 @@ Testing proved that the correct command was being registered via hand signals to
 | `turn_left` | Correct (1.45) | **Left hip yaw actuator** turns _inward_  | Simulated G1 **left hip yaw actuator** turned inward | SUCCESS |
 | `turn_right` | Correct (1.09) | **Right hip yaw actuator** moves _inward_ | Simulated G1 **right hip yaw actuator** turned inward | SUCCESS |
 | `move_forward_left_hand` | Correct (0.69) | **Left shoulder pitch actuator** raises left hand upward | Simulated G1 **left shoulder pitch actuator** raised left arm upward | SUCCESS |
-| `move_backward_left_hand` | Registered as `move_forward_right_hand` for a split second then fixed on `move_backward_left_hand` | **Left shoulder pitch actuator** sends arm backward | Simulated G1 **left shoulder pitch actuator** sent arm backward **AND** **right shoulder pitch actuator** raised right arm upward | **FAILURE** |
+| `move_backward_left_hand` | Correct (1.04) | **Left shoulder pitch actuator** sends arm backward | Simulated G1 **left shoulder pitch actuator** sent arm backward| SUCCESS |
 | `move_forward_right_hand` | Correct (1.01) | **Right shoulder pitch actuator** raises right hand upward | Simulated G1 **right shoulder pitch actuator** raised right arm upward | SUCCESS |
-| `move_backward_right_hand` | Registered as `move_forward_left_hand` for a split second then fixed on `move_backward_right_hand` | **Right shoulder pitch actuator** sends arm backward | Simulated G1 **right shoulder pitch actuator** sent arm backward **AND** **left shoulder pitch actuator** raised right arm upward | **FAILURE** |
+| `move_backward_right_hand` | Correct (0.82) | **Right shoulder pitch actuator** sends arm backward | Simulated G1 **right shoulder pitch actuator** sent arm backward | SUCCESS |
 ---
 ### Observations
 ---
-One gesture being mistaken for another causes another action to start up and run. Causes two commands to be run. Should not work that way. Same problem as previous round of testing. Suggested fix has not been implemented yet.
+`move_backward_left_hand` and `move_backward_right_hand` gestures have been reassigned to a gesture that is more recognisable. Gestures are no longer being mistaken for one another.
 
 ### Conclusion
 ---
-Testing proved that the correct command was being registered via hand signals to the simulation. Same problem as last time persisted as the suggested fix had not been implemented yet. Suggested fix should be implemented before next phase. 
+Testing proved that the correct command was being registered via hand signals to the simulation. Gesture problem from last time has not persisted as the suggested fix has been implemented. Video stream input stable.

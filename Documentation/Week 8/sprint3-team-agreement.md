@@ -34,7 +34,7 @@ By initialling below, I confirm that I have read and understood this agreement, 
 | Name | Initials | Date |
 |------|----------|------|
 |Christo| CW | 13/09/2026|
-|      |          |      |
+|Lithasa| LM | 16/09/2026|
 |      |          |      |
 |      |          |      |
 |      |          |      |

@@ -35,7 +35,7 @@ By initialling below, I confirm that I have read and understood this agreement, 
 |------|----------|------|
 |Christo| CW | 13/09/2026|
 |Lithasa| LM | 16/09/2026|
-|      |          |      |
+| Terry  | TZ | 17/09/2026|
 |      |          |      |
 |      |          |      |
 |      |          |      |

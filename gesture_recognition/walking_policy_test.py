@@ -76,7 +76,7 @@ GAIT_PERIOD = 0.8
 # Fixed test command: walk forward slowly. This is what deploy_mujoco.py's
 # cmd_init does too. Swap this for gesture-driven input in a later step,
 # once this validation passes.
-CMD = np.array([0.3, 0.0, 0.0], dtype=np.float32)
+CMD = np.array([0.1, 0.0, 0.0], dtype=np.float32)
 
 G1_NUM_MOTOR = 29
 LEG_INDICES = list(range(12))  # motor indices 0-11: legs. THIS is the assumption being tested.
@@ -173,6 +173,10 @@ class WalkingPolicyTest:
             obs_tensor = torch.from_numpy(obs).unsqueeze(0)
             self.action = self.policy(obs_tensor).detach().numpy().squeeze()
             self.target_leg_angles = self.action * ACTION_SCALE + DEFAULT_LEG_ANGLES
+
+            if self.counter % 25 == 0:   # print roughly twice a second, not every single 50Hz policy step
+                print("action:", self.action)
+                print("target_leg_angles:", self.target_leg_angles)
 
         # -- PD control every control step (500Hz) --
         self.low_cmd.mode_pr = Mode.PR

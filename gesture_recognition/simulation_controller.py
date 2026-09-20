@@ -65,7 +65,10 @@ class SimController(AbstractGestureController):
         self.low_state = msg
         if not self.ready_:
             self.mode_machine_ = self.low_state.mode_machine
+            self.home_pose_ = [msg.motor_state[i].q for i in range(G1_NUM_MOTOR)]
             self.ready_ = True
+            for i in range(G1_NUM_MOTOR):
+                print(f"[initial pose] joint {i:2d}: q = {msg.motor_state[i].q:+.4f}")
 
     def start(self):
         while not self.ready_:                      # waiting loop till self.ready_ = True (aka. gets a message)
@@ -97,7 +100,9 @@ class SimController(AbstractGestureController):
             for i in range(G1_NUM_MOTOR):
                 self.low_cmd.motor_cmd[i].mode = 1
                 self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = (1.0 - ratio) * self.low_state.motor_state[i].q
+                self.low_cmd.motor_cmd[i].q = (
+                    (1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.home_pose_[i]
+                )
                 self.low_cmd.motor_cmd[i].dq = 0.0
                 self.low_cmd.motor_cmd[i].kp = Kp[i]
                 self.low_cmd.motor_cmd[i].kd = Kd[i]
@@ -106,7 +111,7 @@ class SimController(AbstractGestureController):
             for i in range(G1_NUM_MOTOR):
                 self.low_cmd.motor_cmd[i].mode = 1
                 self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = targets.get(i, 0.0)
+                self.low_cmd.motor_cmd[i].q = targets.get(i, self.home_pose_[i])
                 self.low_cmd.motor_cmd[i].dq = 0.0
                 self.low_cmd.motor_cmd[i].kp = Kp[i]
                 self.low_cmd.motor_cmd[i].kd = Kd[i]

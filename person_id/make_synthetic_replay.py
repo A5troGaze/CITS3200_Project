@@ -10,7 +10,7 @@ import json
 
 import numpy as np
 
-from synthetic_poses import base_poses
+from synthetic_poses import base_poses, blend
 
 
 def main():
@@ -31,7 +31,7 @@ def main():
         for i in range(n_hold + n_move):
             s = 0.0 if i < n_hold else (i - n_hold) / n_move
             s = s * s * (3 - 2 * s)
-            arr = (1 - s) * a.landmarks + s * b.landmarks
+            arr = blend(a, b, s).landmarks
             arr[:, :3] += rng.normal(0, args.noise, size=(33, 3))
             frames.append({
                 "frame_id": k,

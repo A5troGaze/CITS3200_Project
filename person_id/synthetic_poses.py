@@ -162,7 +162,29 @@ def _rebuild(pose, yaw_deg):
     return b
 
 
-def interpolate(a, b, t):
-    """Landmark-space blend between two poses (for motion sequences)."""
-    arr = (1 - t) * a.landmarks + t * b.landmarks
-    return arr
+def slerp_dir(a, b, s, via=(1.0, 0.0, 0.0)):
+    """Rotate unit vector a toward b by fraction s along the great circle.
+    Nearly opposite directions (arm up -> arm down) swing through `via`
+    (forward), the way a person actually moves an arm, instead of passing
+    through the shoulder as a straight landmark blend would."""
+    a, b = unit(*a), unit(*b)
+    if np.dot(a, b) < -0.9:
+        mid = unit(*via)
+        return slerp_dir(a, mid, 2 * s) if s < 0.5 else slerp_dir(mid, b, 2 * s - 1)
+    ang = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
+    if ang < 1e-6:
+        return a
+    return (np.sin((1 - s) * ang) * a + np.sin(s * ang) * b) / np.sin(ang)
+
+
+def blend(a, b, s, yaw_deg=0.0):
+    """Pose part-way (s in [0, 1]) from pose a to pose b: limb directions and
+    torso orientation are interpolated, so bones keep their length and move
+    along arcs like a real person's."""
+    from scipy.spatial.transform import Rotation, Slerp
+
+    torso = Slerp([0, 1], Rotation.from_matrix(np.stack([a.torso, b.torso])))([s]).as_matrix()[0]
+    return build_pose(f"{a.name}->{b.name}",
+                      slerp_dir(a.upper["left"], b.upper["left"], s), slerp_dir(a.fore["left"], b.fore["left"], s),
+                      slerp_dir(a.upper["right"], b.upper["right"], s), slerp_dir(a.fore["right"], b.fore["right"], s),
+                      torso=torso, yaw_deg=yaw_deg)

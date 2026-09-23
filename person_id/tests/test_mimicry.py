@@ -189,7 +189,7 @@ def test_latency_budget(pipeline):
     tails on the team VM are dominated by the hypervisor: 20 plain 40x40
     numpy solves have a 0.8 ms median there but stall up to ~45 ms. Wall
     p95/max are printed so they are still visible."""
-    from synthetic_poses import base_poses
+    from synthetic_poses import base_poses, blend
 
     seq = base_poses()
     pipeline.reset()
@@ -198,7 +198,7 @@ def test_latency_budget(pipeline):
     for a, b in zip(seq, seq[1:]):
         for k in range(15):  # 0.5 s per transition at 30 fps
             s = k / 15.0
-            r = pipeline.step((1 - s) * a.landmarks + s * b.landmarks, t)
+            r = pipeline.step(blend(a, b, s).landmarks, t)
             t += 1 / 30.0
             ms = r.timings_ms
             rows.append((ms["gmr"], ms["total"], ms["gmr_cpu"], ms["total_cpu"]))

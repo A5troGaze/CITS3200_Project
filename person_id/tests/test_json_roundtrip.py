@@ -36,7 +36,7 @@ def test_exported_json_round_trips_through_replay(tmp_path, pipeline):
     for t, landmarks in loaded:
         result = pipeline.step(landmarks, t)
         assert len(result.q) == 29
-        assert set(result.targets) == set(range(12, 29))
+        assert set(result.targets) == set(range(15, 29))
 
 
 def test_malformed_frames_are_skipped_not_fatal(tmp_path):

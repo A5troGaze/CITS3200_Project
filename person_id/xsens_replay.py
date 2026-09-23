@@ -68,7 +68,7 @@ class XsensRetargeter:
     """GMR with its bvh_xsens -> unitree_g1 config; per-frame solve mapped to
     motor indices by joint name."""
 
-    def __init__(self, human_height, waist="3dof", legs=False):
+    def __init__(self, human_height, waist="off", legs=False):
         with contextlib.redirect_stdout(io.StringIO()):
             from general_motion_retargeting import GeneralMotionRetargeting
 

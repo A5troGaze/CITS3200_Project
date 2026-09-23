@@ -391,7 +391,7 @@ class TargetBuilder:
     waist-locked robots) or "off" (torso held upright).
     """
 
-    def __init__(self, model, waist="3dof", waist_limits=None):
+    def __init__(self, model, waist="off", waist_limits=None):
         import mujoco
 
         self.model = model

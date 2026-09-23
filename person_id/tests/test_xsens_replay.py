@@ -23,6 +23,6 @@ def test_xsens_sample_retargets_to_valid_upper_body_targets():
     rt = XsensRetargeter(height)
     for frame in frames[::20]:
         targets, q, ms = rt.step(frame)
-        assert set(targets) == set(range(12, 29))          # waist + arms, no legs
+        assert set(targets) == set(range(15, 29))          # arms only
         assert all(math.isfinite(v) for v in targets.values())
         assert validate_command(q) == []

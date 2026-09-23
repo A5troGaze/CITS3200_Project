@@ -42,7 +42,7 @@ class MimicResult:
 
 
 class MimicPipeline:
-    def __init__(self, mirror=False, waist="3dof", legs=False, min_visibility=0.5,
+    def __init__(self, mirror=False, waist="off", legs=False, min_visibility=0.5,
                  visibility_hysteresis=0.1, hold_s=0.5, ease_s=1.0,
                  min_cutoff=0.5, beta=4.0, d_cutoff=0.5, smooth=True, retargeter=None):
         self.mirror = mirror

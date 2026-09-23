@@ -5,8 +5,10 @@ gate, GMR, name->motor mapping, clamp) -> unitree_mujoco's G1 MJCF.
 
 For every pose, the robot's upper-arm and forearm directions (from MuJoCo
 body positions, in the robot torso frame) must be within 15 deg of the
-person's (in the person's torso frame), and the torso's up and lateral
-axes relative to the pelvis within 15 deg of the person's.
+person's (in the person's torso frame). The default pipeline mimics the
+arms only (the torso is left to the balance controller). Torso mimicry
+(--waist 3dof) is checked separately: the torso's up and lateral axes
+relative to the pelvis within 15 deg of the person's.
 
 The reference is the nearest direction the G1 can physically take:
 * joint limits: a pose past a limit must leave that joint at the limit
@@ -58,15 +60,37 @@ def reference_dirs(pose):
     return upper, fore
 
 
-def segment_errors(pose, upper, fore, torso_rel, reference=True):
+def segment_errors(pose, upper, fore, torso_rel, reference=True, torso=False):
     ref_u, ref_f = reference_dirs(pose) if reference else (pose.upper, pose.fore)
     errs = {}
     for side in ("left", "right"):
         errs[f"{side}_upper"] = angle_deg(upper[side], ref_u[side])
         errs[f"{side}_fore"] = angle_deg(fore[side], ref_f[side])
-    errs["torso_up"] = angle_deg(torso_rel[:, 2], pose.torso[:, 2])
-    errs["torso_lateral"] = angle_deg(torso_rel[:, 1], pose.torso[:, 1])
+    if torso:
+        errs["torso_up"] = angle_deg(torso_rel[:, 2], pose.torso[:, 2])
+        errs["torso_lateral"] = angle_deg(torso_rel[:, 1], pose.torso[:, 1])
     return errs
+
+
+@pytest.fixture(scope="module")
+def torso_pipeline():
+    from gmr_retarget import GmrRetargeter
+    from mimic_pipeline import MimicPipeline
+
+    return MimicPipeline(waist="3dof", retargeter=GmrRetargeter(budget_ms=1000.0))
+
+
+TORSO_POSES = [p for p in POSES if p.name.startswith(("lean", "torso"))]
+
+
+@pytest.mark.parametrize("pose", TORSO_POSES, ids=[p.name for p in TORSO_POSES])
+def test_torso_mimicry_when_waist_enabled(torso_pipeline, sim, pose):
+    model, data = sim
+    result = run_static(torso_pipeline, pose.landmarks)
+    set_joint_positions(model, data, result.q)
+    errs = segment_errors(pose, *segment_vectors(model, data), torso=True)
+    bad = {k: round(v, 1) for k, v in errs.items() if v > TOL_DEG}
+    assert not bad, f"{pose.name}: segments over {TOL_DEG} deg: {bad}"
 
 
 def _report(kind, pose, errs, raw):
@@ -109,10 +133,10 @@ def test_unreachable_arm_behind_goes_to_shoulder_pitch_limit(pipeline):
     assert result.q["left_shoulder_pitch_joint"] == pytest.approx(hi, abs=0.05)
 
 
-def test_unreachable_deep_lean_goes_to_waist_pitch_limit(pipeline):
+def test_unreachable_deep_lean_goes_to_waist_pitch_limit(torso_pipeline):
     pose = build_pose("deep_lean", rot_y(50).T @ unit(0, 0, -1), rot_y(50).T @ unit(0, 0, -1), torso=rot_y(50))
-    result = run_static(pipeline, pose.landmarks)
-    lo, hi = pipeline.gmr.model.joint("waist_pitch_joint").range
+    result = run_static(torso_pipeline, pose.landmarks)
+    lo, hi = torso_pipeline.gmr.model.joint("waist_pitch_joint").range
     assert result.q["waist_pitch_joint"] == pytest.approx(hi, abs=0.02)
 
 
@@ -124,14 +148,15 @@ def test_all_targets_within_real_joint_limits(pipeline):
         assert validate_command(result.q) == [], pose.name
 
 
-def test_legs_not_commanded_by_default(pipeline):
+def test_only_arms_commanded_by_default(pipeline):
     from gmr_retarget import LEG_JOINTS
     from g1_joint_limits import G1_29DOF_JOINT_LIMITS
 
     result = run_static(pipeline, POSES[0].landmarks)
     leg_idx = {G1_29DOF_JOINT_LIMITS[n].index for n in LEG_JOINTS}
     assert not leg_idx & set(result.targets)
-    assert set(result.targets) == set(range(12, 29))
+    assert set(result.targets) == set(range(15, 29))   # arms only: no legs, no waist
+    assert abs(result.q["waist_pitch_joint"]) < 0.05 and abs(result.q["waist_yaw_joint"]) < 0.05
 
 
 def _robot_arm_up(result, sim, side):

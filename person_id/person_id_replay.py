@@ -55,8 +55,10 @@ def add_pipeline_args(parser):
     parser.add_argument("--mirror", action="store_true",
                         help="Mirror mode: the person's left arm drives the robot's right arm. "
                              "Default is anatomical (left drives left).")
-    parser.add_argument("--waist", choices=("3dof", "yaw", "off"), default="3dof",
-                        help="Waist joints to mimic. Use 'yaw' on a waist-locked real G1.")
+    parser.add_argument("--waist", choices=("off", "yaw", "3dof"), default="off",
+                        help="Default 'off': arms only; the torso is left to the balance controller "
+                             "(driving the waist fights the rl_lab / Unitree balance policy). "
+                             "'yaw'/'3dof' mimic the torso too, only with a pinned or band-held robot.")
     parser.add_argument("--legs", action="store_true",
                         help="Also command the legs (sim only, with the elastic band on). Off by default.")
     parser.add_argument("--min-visibility", type=float, default=0.5,

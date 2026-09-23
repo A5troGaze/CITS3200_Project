@@ -39,7 +39,7 @@ WAIST_JOINTS = {
 }
 
 
-def commanded_joint_names(waist="3dof", legs=False):
+def commanded_joint_names(waist="off", legs=False):
     """Joints person_id sends targets for. With waist="yaw", roll/pitch are
     still commanded but always at 0 (a locked waist ignores them)."""
     names = list(ARM_JOINTS) + WAIST_JOINTS[waist]

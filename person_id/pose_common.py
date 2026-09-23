@@ -146,7 +146,7 @@ def open_capture(input_arg, width, height):
 
     # cap.set() can fail silently if the driver rejects the request — check
     # what was actually negotiated instead of assuming it worked.
-    if (frame_w, frame_h) != (width, height):
+    if is_live_camera and (frame_w, frame_h) != (width, height):
         print(f"WARNING: requested {width}x{height} but the input is "
               f"actually delivering {frame_w}x{frame_h}. The driver ignored "
               "the request — run `v4l2-ctl --device=/dev/video0 "
@@ -188,22 +188,88 @@ class FpsCounter:
         return self.display_fps
 
 
-class LeaderTracker:
-    """Click-to-select leader tracking by nearest bounding-box centroid.
+TORSO_LANDMARKS = (11, 12, 24, 23)  # shoulder L, shoulder R, hip R, hip L (polygon order)
+HIST_BINS = (16, 8)                 # hue x saturation
 
-    `detections` passed to handle_click/update is a list of dicts, each with
-    at least a "bbox" (x_min, y_min, x_max, y_max) and "centroid" (x, y) key
-    (build these with landmarks_to_bbox/bbox_centroid over each frame's
-    detections; extra keys such as "landmarks" are carried through untouched
-    since these methods return the whole matched dict).
+
+def torso_histogram(frame_bgr, landmarks, frame_w, frame_h):
+    """Normalised 2-D HSV (hue x saturation) histogram of the torso region
+    (shoulder/hip quadrilateral, shrunk 15 % toward its centre so arms and
+    background at the edges are mostly excluded). Returns a flat float32
+    array summing to 1, or None if the torso is too small or off-frame.
+    Clothing colour is a cheap, robust cue to tell two people apart when
+    their boxes cross."""
+    import cv2
+    import numpy as np
+
+    pts = np.array([[landmarks[i].x * frame_w, landmarks[i].y * frame_h] for i in TORSO_LANDMARKS],
+                   dtype=np.float32)
+    centre = pts.mean(axis=0)
+    pts = centre + 0.85 * (pts - centre)
+    pts[:, 0] = np.clip(pts[:, 0], 0, frame_w - 1)
+    pts[:, 1] = np.clip(pts[:, 1], 0, frame_h - 1)
+    if cv2.contourArea(pts) < 150:
+        return None
+    mask = np.zeros(frame_bgr.shape[:2], dtype=np.uint8)
+    cv2.fillConvexPoly(mask, pts.astype(np.int32), 255)
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+    hist = cv2.calcHist([hsv], [0, 1], mask, list(HIST_BINS), [0, 180, 0, 256]).flatten()
+    total = hist.sum()
+    if total <= 0:
+        return None
+    return (hist / total).astype(np.float32)
+
+
+def histogram_distance(a, b):
+    """Bhattacharyya/Hellinger distance between two normalised histograms:
+    0 = identical, 1 = no overlap."""
+    if a is None or b is None:
+        return None
+    bc = float(sum(math.sqrt(max(x, 0.0) * max(y, 0.0)) for x, y in zip(a, b)))
+    return math.sqrt(max(0.0, 1.0 - bc))
+
+
+class LeaderTracker:
+    """Click-to-select leader tracking.
+
+    Each frame, every detection is scored against the leader by
+      cost = (1 - w) * (distance to predicted centroid / match radius)
+             + w * appearance distance (torso HSV histogram, 0..1)
+    and the cheapest detection within the match radius wins. The predicted
+    centroid adds the leader's recent velocity, and the match radius is a
+    fraction of the frame diagonal (max_match_frac, so it scales with
+    resolution) unless an absolute max_match_distance in pixels is given.
+    A detection whose clothing clearly differs (appearance distance above
+    max_appearance_distance) is never taken as the leader, even if it is
+    the closest. That is what stops identity swapping when two people cross.
+
+    `detections` are dicts with at least "bbox" and "centroid", plus
+    optional "hist" (torso_histogram). Extra keys pass through untouched.
+    Detections without a histogram fall back to distance-only matching.
     """
 
-    def __init__(self, max_match_distance=120.0, leader_lost_frames=15):
+    def __init__(self, max_match_distance=None, leader_lost_frames=15, max_match_frac=0.2,
+                 appearance_weight=0.5, max_appearance_distance=0.6, hist_update=0.1,
+                 use_velocity=True):
         self.max_match_distance = max_match_distance
+        self.max_match_frac = max_match_frac
         self.leader_lost_frames = leader_lost_frames
+        self.appearance_weight = appearance_weight
+        self.max_appearance_distance = max_appearance_distance
+        self.hist_update = hist_update
+        self.use_velocity = use_velocity
         self.locked = False
         self.centroid = None
+        self.velocity = (0.0, 0.0)
+        self.hist = None
         self.lost_frames = 0
+
+    def _radius(self, frame_diag):
+        if self.max_match_distance is not None:
+            return float(self.max_match_distance)
+        if frame_diag is None:
+            return 120.0
+        return self.max_match_frac * frame_diag
 
     def handle_click(self, x, y, detections):
         """Select whichever detection contains (x, y), preferring the
@@ -220,40 +286,65 @@ class LeaderTracker:
         if best is not None:
             self.locked = True
             self.centroid = best["centroid"]
+            self.velocity = (0.0, 0.0)
+            self.hist = best.get("hist")
             self.lost_frames = 0
         return best
 
-    def update(self, detections):
+    def predicted_centroid(self):
+        if not self.use_velocity:
+            return self.centroid
+        k = self.lost_frames + 1
+        return (self.centroid[0] + k * self.velocity[0], self.centroid[1] + k * self.velocity[1])
+
+    def update(self, detections, frame_diag=None):
         """Match the locked leader against this frame's detections.
 
-        Must be called every frame regardless of whether detections is
-        empty (defect 1): pose_test.py's `if locked and detections:` guard
-        skipped this on empty frames, so lost_frames never advanced and the
-        leader never timed out. Counting every unmatched frame unconditionally
-        is the correct behaviour used here.
+        Must be called every frame, even with no detections, so that
+        lost_frames advances and the lock is released after
+        leader_lost_frames unmatched frames.
         """
         if not self.locked:
             return None
 
-        matched = None
-        if detections:
-            best_dist, best = None, None
-            for d in detections:
-                dx = d["centroid"][0] - self.centroid[0]
-                dy = d["centroid"][1] - self.centroid[1]
-                dist = math.hypot(dx, dy)
-                if best_dist is None or dist < best_dist:
-                    best_dist, best = dist, d
-            if best_dist is not None and best_dist <= self.max_match_distance:
-                matched = best
+        radius = self._radius(frame_diag)
+        px, py = self.predicted_centroid()
+        w = self.appearance_weight
+        matched, best_cost = None, None
+        for d in detections or []:
+            dist = math.hypot(d["centroid"][0] - px, d["centroid"][1] - py)
+            if dist > radius:
+                continue
+            app = histogram_distance(self.hist, d.get("hist"))
+            if app is None:
+                cost = dist / radius
+            else:
+                if app > self.max_appearance_distance:
+                    continue
+                cost = (1 - w) * dist / radius + w * app
+            if best_cost is None or cost < best_cost:
+                best_cost, matched = cost, d
 
         if matched is not None:
-            self.centroid = matched["centroid"]
+            cx, cy = matched["centroid"]
+            steps = self.lost_frames + 1
+            vx, vy = (cx - self.centroid[0]) / steps, (cy - self.centroid[1]) / steps
+            self.velocity = (0.5 * self.velocity[0] + 0.5 * vx, 0.5 * self.velocity[1] + 0.5 * vy)
+            self.centroid = (cx, cy)
+            h = matched.get("hist")
+            if h is not None:
+                if self.hist is None:
+                    self.hist = h
+                else:
+                    a = self.hist_update
+                    self.hist = [(1 - a) * x + a * y for x, y in zip(self.hist, h)]
             self.lost_frames = 0
         else:
             self.lost_frames += 1
             if self.lost_frames > self.leader_lost_frames:
                 self.locked = False
                 self.centroid = None
+                self.hist = None
+                self.velocity = (0.0, 0.0)
                 self.lost_frames = 0
         return matched

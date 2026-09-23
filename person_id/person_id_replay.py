@@ -113,6 +113,38 @@ def shutdown_publisher(pub):
     pub.stop()
 
 
+def report_tracking(track, log=print, settle_frames=20, settle_tol=0.02, lags=range(0, 16)):
+    """Compare the joint positions read back from rt/lowstate with the
+    targets sent (arms + waist), two ways:
+
+    * settled: frames where that joint's target has moved less than
+      settle_tol rad over the previous settle_frames frames (the person is
+      holding a pose), i.e. steady-state tracking accuracy;
+    * lag: the delay (in frames) that best lines the measured motion up
+      with the targets, i.e. how far the robot trails the person.
+    Returns (settled median deg, settled p95 deg, lag frames)."""
+    idx = sorted(track[0][0])
+    targets = np.array([[tg[i] for i in idx] for tg, _ in track])
+    measured = np.array([[m[i] for i in idx] for _, m in track])
+    n = len(targets)
+    errs = []
+    for k in range(settle_frames, n):
+        window = targets[k - settle_frames:k + 1]
+        steady = (window.max(axis=0) - window.min(axis=0)) < settle_tol
+        errs.extend(np.abs(measured[k, steady] - targets[k, steady]))
+    errs = np.degrees(np.array(errs)) if errs else np.array([np.nan])
+    lag_err = []
+    for lag in lags:
+        e = np.abs(measured[lag:] - targets[:n - lag]) if lag else np.abs(measured - targets)
+        lag_err.append(np.median(e))
+    best_lag = int(np.argmin(lag_err))
+    log("\nTracking (rt/lowstate vs targets sent), arms + waist:")
+    log(f"  settled frames: median {np.median(errs):.2f} deg, p95 {np.percentile(errs, 95):.2f} deg, "
+        f"max {np.max(errs):.2f} deg ({len(errs)} joint-samples)")
+    log(f"  while moving the robot trails the targets by ~{best_lag} frames (~{best_lag * 33} ms)")
+    return float(np.median(errs)), float(np.percentile(errs, 95)), best_lag
+
+
 def run_replay(args, log=print):
     """Replay args.landmarks_json through the pipeline. args needs
     landmarks_json, dry_run, record_demo, no_realtime and the
@@ -138,21 +170,28 @@ def run_replay(args, log=print):
         pub = build_publisher(args, log=log)
         start = time.monotonic()
         t0 = frames[0][0]
-        lat = []
+        lat, lat_cpu = [], []
+        track = []   # (target, measured) per frame, for --report-tracking
         for k, (t, arr) in enumerate(frames):
             if not args.no_realtime and pub is not None:
                 time.sleep(max(0.0, (t - t0) - (time.monotonic() - start)))
             result = pipeline.step(arr, t)
             lat.append(result.timings_ms["gmr"])
+            lat_cpu.append(result.timings_ms["gmr_cpu"])
             if pub is not None:
                 pub.set_targets(result.targets)
+                if getattr(args, "report_tracking", False) and hasattr(pub, "measured_positions"):
+                    track.append((dict(result.targets), pub.measured_positions()))
             if args.dry_run and k % 10 == 0:
                 log(f"t={t - t0:6.2f}s gmr {result.timings_ms['gmr']:5.1f} ms "
                     + " ".join(f"{i}:{q:+.2f}" for i, q in sorted(result.targets.items())))
             if recorder is not None:
                 recorder.add_stick_frame(arr, result)
         log(f"Replay complete: {len(frames)} frames, {len(skipped)} skipped. "
-            f"GMR per frame median {np.median(lat):.1f} ms, p95 {np.percentile(lat, 95):.1f} ms.")
+            f"GMR per frame: wall median {np.median(lat):.1f} ms, p95 {np.percentile(lat, 95):.1f} ms; "
+            f"CPU median {np.median(lat_cpu):.1f} ms, p95 {np.percentile(lat_cpu, 95):.1f} ms.")
+        if track:
+            report_tracking(track, log)
     except KeyboardInterrupt:
         log("Interrupted.")
     except TimeoutError as exc:
@@ -170,6 +209,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="No DDS: print targets only")
     parser.add_argument("--record-demo", default=None, help="Write stick figure | robot video (mp4)")
     parser.add_argument("--no-realtime", action="store_true", help="Do not wait between frames")
+    parser.add_argument("--report-tracking", action="store_true",
+                        help="Sim only: compare rt/lowstate joint positions with the targets sent")
     add_pipeline_args(parser)
     run_replay(parser.parse_args())
 

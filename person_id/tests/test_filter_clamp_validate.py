@@ -1,21 +1,25 @@
+import numpy as np
 import pytest
 
+from command_shaping import CommandShaper, step_toward
 from g1_joint_limits import G1_29DOF_JOINT_LIMITS, clamp_position, validate_command
-from retarget_upper_body import TargetFilter
 
 JOINT = "left_elbow_joint"
 LIM = G1_29DOF_JOINT_LIMITS[JOINT]
 
 
-def test_rate_limiter_never_exceeds_velocity_times_dt():
-    f = TargetFilter(alpha=1.0)  # alpha=1 disables smoothing to isolate the rate limiter
-    dt = 0.001  # small enough that velocity*dt stays within the joint's own range
+def test_rate_limiter_never_exceeds_speed_times_dt():
+    dt = 0.002
+    shaper = CommandShaper(np.zeros(29), dt, tau_s=0.0, max_speed=5.0, engage_s=0.0)  # no smoothing
+    shaper.set_target(LIM.index, LIM.upper)  # try to jump straight to the limit
+    q = shaper.tick()
+    assert q[LIM.index] == pytest.approx(5.0 * dt, abs=1e-9)
 
-    f.step({JOINT: 0.0}, dt)  # establish a starting point
-    result = f.step({JOINT: LIM.upper}, dt)  # try to jump straight to the limit
 
-    max_step = LIM.velocity * dt
-    assert result[JOINT] == pytest.approx(max_step, abs=1e-6)
+def test_step_toward_is_symmetric_and_stops_at_target():
+    assert step_toward([0.0], [1.0], 0.3)[0] == pytest.approx(0.3)
+    assert step_toward([0.0], [-1.0], 0.3)[0] == pytest.approx(-0.3)
+    assert step_toward([0.0], [0.1], 0.3)[0] == pytest.approx(0.1)
 
 
 def test_clamp_never_exceeds_table_bounds():

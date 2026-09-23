@@ -61,6 +61,7 @@ class MimicPipeline:
     def reset(self):
         self.filter.reset()
         self.gate.reset()
+        self.builder.reset()
         self.gmr.reset()
         self._valid = {k: False for k in SEGMENT_LANDMARKS}
 

@@ -409,6 +409,26 @@ class TargetBuilder:
         self.waist_limits = waist_limits
         self.shoulder_body = {s: model.body(f"{s}_shoulder_roll_link").id for s in SIDES}
         self.torso_body = model.body("torso_link").id
+        self.reset()
+
+    def reset(self):
+        """Forget the elbow-hinge history (start of a new session)."""
+        self.prev_hinge = {s: None for s in SIDES}
+
+    def _fallback_hinge(self, side, u_t):
+        """Hinge to use while twist is unobservable (straight arm), torso frame.
+
+        The previous frame's hinge, re-orthogonalised to the new upper-arm
+        direction (parallel transport), so the arm keeps whatever twist it had
+        when it straightened instead of snapping to a different one. The
+        geometric reference_hinge is only used with no usable history."""
+        prev = self.prev_hinge[side]
+        if prev is not None:
+            n = prev - np.dot(prev, u_t) * u_t
+            norm = np.linalg.norm(n)
+            if norm > 0.3:
+                return n / norm
+        return reference_hinge(u_t)
 
     def clamp_torso(self, r_rel):
         yaw, roll, pitch = waist_euler_from_matrix(r_rel)
@@ -449,7 +469,8 @@ class TargetBuilder:
             u = r_torso @ u_t
             f = r_torso @ f_t
             u0, f0, n0 = self.rest.u0[side], self.rest.f0[side], self.rest.n0[side]
-            n, conf = hinge_axis(u, f, r_torso @ reference_hinge(u_t))
+            n, conf = hinge_axis(u, f, r_torso @ self._fallback_hinge(side, u_t))
+            self.prev_hinge[side] = r_torso.T @ n
 
             r_upper = _link_frame(u, n) @ _link_frame(u0, n0).T
             r_fore = _link_frame(f, n) @ _link_frame(f0, n0).T

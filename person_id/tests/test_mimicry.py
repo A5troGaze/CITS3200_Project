@@ -181,7 +181,7 @@ def test_same_body_turned_30_degrees_gives_same_joints(pipeline):
             assert abs(a[joint] - b[joint]) < math.radians(2), (name, joint)
 
 
-def test_latency_budget(pipeline):
+def test_latency_budget():
     """GMR must fit in one 30 fps frame (33 ms) while tracking a continuous
     motion, and so must the whole retarget step (filter + adapter + GMR).
 
@@ -189,10 +189,11 @@ def test_latency_budget(pipeline):
     tails on the team VM are dominated by the hypervisor: 20 plain 40x40
     numpy solves have a 0.8 ms median there but stall up to ~45 ms. Wall
     p95/max are printed so they are still visible."""
+    from mimic_pipeline import MimicPipeline
     from synthetic_poses import base_poses, blend
 
     seq = base_poses()
-    pipeline.reset()
+    pipeline = MimicPipeline()   # default (real) GMR time budget
     rows = []
     t = 0.0
     for a, b in zip(seq, seq[1:]):

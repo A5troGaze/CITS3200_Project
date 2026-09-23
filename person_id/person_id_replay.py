@@ -1,69 +1,177 @@
-"""Replay exported leader landmarks through retargeting and G1 MuJoCo.
+"""Replay an exported landmark recording through the person_id pipeline.
 
-The input is a JSON list of frames containing ``timestamp_ms`` and
-``landmarks_world_m``. Each landmark frame must contain exactly 33 entries with
-numeric x, y, and z values. Valid frames are replayed using their recorded timing;
-malformed frames are reported and skipped.
+Reads the JSON that `leader_pose.py --export-landmarks` writes: a list of
+frames {frame_id, timestamp_ms, leader_id, bbox, landmarks_world_m[33]
+{x, y, z, visibility}}. Malformed frames are reported and skipped.
+
+    # Offline: no DDS, no sim. Prints joint targets and GMR latency.
+    python3 person_id_replay.py recording.json --dry-run
+
+    # Drive a running unitree_mujoco sim (elastic band on):
+    python3 person_id_replay.py recording.json
+
+    # Record the stick figure beside the robot:
+    python3 person_id_replay.py recording.json --dry-run --record-demo replay.mp4
+
+The same replay is available as `leader_pose.py --replay recording.json`.
 """
 
 import argparse
 import json
 import math
-import time
 
-from mujoco_pose_controller import MujocoPoseController
-from pose_retargeting import json_landmarks_to_xyz, retarget_arms_indexed
+import numpy as np
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("landmarks_json")
-    parser.add_argument("--domain-id", type=int, default=1)
-    parser.add_argument("--interface", default="lo")
-    return parser.parse_args()
+def load_frames(path):
+    """Returns (frames, skipped): frames is a list of (t_seconds, (33, 4)
+    array), in recording order, keeping only well-formed frames."""
+    with open(path, encoding="utf-8") as handle:
+        raw = json.load(handle)
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("landmark JSON must contain a non-empty list of frames")
+    frames, skipped = [], []
+    for position, frame in enumerate(raw):
+        try:
+            t = float(frame["timestamp_ms"]) / 1000.0
+            if not math.isfinite(t):
+                raise ValueError("timestamp is not finite")
+            lms = frame["landmarks_world_m"]
+            if not isinstance(lms, list) or len(lms) != 33:
+                raise ValueError("expected 33 landmarks")
+            arr = np.array([[float(lm["x"]), float(lm["y"]), float(lm["z"]),
+                             float(lm.get("visibility", 1.0))] for lm in lms])
+            if not np.all(np.isfinite(arr)):
+                raise ValueError("non-finite landmark value")
+        except (KeyError, TypeError, ValueError) as exc:
+            skipped.append((frame.get("frame_id", position) if isinstance(frame, dict) else position, str(exc)))
+            continue
+        frames.append((t, arr))
+    return frames, skipped
+
+
+def add_pipeline_args(parser):
+    """Retargeting options shared by the live and replay entry points."""
+    parser.add_argument("--mirror", action="store_true",
+                        help="Mirror mode: the person's left arm drives the robot's right arm. "
+                             "Default is anatomical (left drives left).")
+    parser.add_argument("--waist", choices=("3dof", "yaw", "off"), default="3dof",
+                        help="Waist joints to mimic. Use 'yaw' on a waist-locked real G1.")
+    parser.add_argument("--legs", action="store_true",
+                        help="Also command the legs (sim only, with the elastic band on). Off by default.")
+    parser.add_argument("--min-visibility", type=float, default=0.5,
+                        help="MediaPipe visibility below which a limb is held, then eased to neutral")
+    parser.add_argument("--commanded-only", action="store_true",
+                        help="Leave joints that are not mimicked limp (kp=kd=0) instead of holding them")
+    parser.add_argument("--max-speed", type=float, default=5.0, help="Command velocity cap, rad/s")
+    parser.add_argument("--dds-domain", type=int, default=1, help="CycloneDDS domain (sim: 1)")
+    parser.add_argument("--dds-interface", default="lo", help="Network interface (sim: lo)")
+    parser.add_argument("--real", action="store_true",
+                        help="REAL ROBOT via rt/arm_sdk (untested on hardware). Needs --dds-interface "
+                             "set to the robot NIC and --dds-domain 0.")
+
+
+def build_pipeline(args):
+    from mimic_pipeline import MimicPipeline
+
+    return MimicPipeline(mirror=args.mirror, waist=args.waist, legs=args.legs,
+                         min_visibility=args.min_visibility)
+
+
+def build_publisher(args, log=print):
+    """Sim controller, arm_sdk publisher, or None for --dry-run.
+    unitree_sdk2py is only imported here, never in --dry-run."""
+    if args.dry_run:
+        return None
+    if args.real:
+        from arm_sdk_publisher import ArmSdkPublisher
+
+        pub = ArmSdkPublisher(interface=args.dds_interface, domain_id=args.dds_domain, real=True, log=log)
+        pub.init()
+        pub.start()
+        pub.engage()
+        return pub
+    from mujoco_pose_controller import MujocoPoseController
+
+    ctl = MujocoPoseController(args.dds_domain, args.dds_interface, max_command_speed=args.max_speed,
+                               commanded_only=args.commanded_only, allow_legs=args.legs)
+    log("Waiting for rt/lowstate from unitree_mujoco...")
+    ctl.init()
+    ctl.start()
+    return ctl
+
+
+def shutdown_publisher(pub):
+    """Return the robot to its start pose and stop publishing."""
+    if pub is None:
+        return
+    if hasattr(pub, "disengage"):
+        pub.disengage()
+    else:
+        if pub.ready.is_set():
+            pub.return_to_start()
+    pub.stop()
+
+
+def run_replay(args, log=print):
+    """Replay args.landmarks_json through the pipeline. args needs
+    landmarks_json, dry_run, record_demo, no_realtime and the
+    add_pipeline_args options."""
+    import time
+
+    frames, skipped = load_frames(args.landmarks_json)
+    for frame_id, reason in skipped:
+        log(f"Frame {frame_id} skipped: {reason}")
+    if not frames:
+        raise SystemExit("No valid frames to replay")
+
+    pipeline = build_pipeline(args)
+    recorder = None
+    if args.record_demo:
+        from demo_recorder import DemoRecorder
+
+        fps = 1.0 / max(np.median(np.diff([t for t, _ in frames])), 1e-3) if len(frames) > 1 else 30.0
+        recorder = DemoRecorder(args.record_demo, fps=fps, log=log)
+
+    pub = None
+    try:
+        pub = build_publisher(args, log=log)
+        start = time.monotonic()
+        t0 = frames[0][0]
+        lat = []
+        for k, (t, arr) in enumerate(frames):
+            if not args.no_realtime and pub is not None:
+                time.sleep(max(0.0, (t - t0) - (time.monotonic() - start)))
+            result = pipeline.step(arr, t)
+            lat.append(result.timings_ms["gmr"])
+            if pub is not None:
+                pub.set_targets(result.targets)
+            if args.dry_run and k % 10 == 0:
+                log(f"t={t - t0:6.2f}s gmr {result.timings_ms['gmr']:5.1f} ms "
+                    + " ".join(f"{i}:{q:+.2f}" for i, q in sorted(result.targets.items())))
+            if recorder is not None:
+                recorder.add_stick_frame(arr, result)
+        log(f"Replay complete: {len(frames)} frames, {len(skipped)} skipped. "
+            f"GMR per frame median {np.median(lat):.1f} ms, p95 {np.percentile(lat, 95):.1f} ms.")
+    except KeyboardInterrupt:
+        log("Interrupted.")
+    except TimeoutError as exc:
+        raise SystemExit(f"Could not connect: {exc}")
+    finally:
+        shutdown_publisher(pub)
+        if recorder is not None:
+            recorder.close()
+            log(f"Demo video written to {args.record_demo}")
 
 
 def main():
-    args = parse_args()
-    try:
-        with open(args.landmarks_json, encoding="utf-8") as handle:
-            frames = json.load(handle)
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"Could not read landmark JSON: {exc}")
-    if not isinstance(frames, list) or not frames:
-        raise SystemExit("Landmark JSON must contain a non-empty frame list")
-
-    controller = MujocoPoseController(args.domain_id, args.interface)
-    try:
-        controller.init()
-        controller.start()
-        previous_timestamp = None  # Updated only after successfully parsing a frame.
-        skipped = 0
-        for position, frame in enumerate(frames):
-            try:
-                timestamp = float(frame["timestamp_ms"])
-                if not math.isfinite(timestamp):
-                    raise ValueError("timestamp is not finite")
-                xyz = json_landmarks_to_xyz(frame.get("landmarks_world_m"))
-                targets = retarget_arms_indexed(xyz)
-            except (KeyError, TypeError, ValueError) as exc:
-                # One malformed frame should not abort the remainder of a replay.
-                skipped += 1
-                print(f"Frame {frame.get('frame_id', position)} skipped: {exc}")
-                continue
-
-            if previous_timestamp is not None:
-                # Preserve the elapsed time between valid frames in the recording.
-                time.sleep(max(0.0, timestamp - previous_timestamp) / 1000.0)
-            controller.set_targets(targets)
-            previous_timestamp = timestamp
-        print(f"Replay complete; {skipped} malformed frame(s) skipped.")
-    except TimeoutError as exc:
-        raise SystemExit(f"Could not connect to MuJoCo: {exc}")
-    finally:
-        if controller.ready.is_set():
-            controller.return_to_start()
-        controller.stop()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("landmarks_json")
+    parser.add_argument("--dry-run", action="store_true", help="No DDS: print targets only")
+    parser.add_argument("--record-demo", default=None, help="Write stick figure | robot video (mp4)")
+    parser.add_argument("--no-realtime", action="store_true", help="Do not wait between frames")
+    add_pipeline_args(parser)
+    run_replay(parser.parse_args())
 
 
 if __name__ == "__main__":

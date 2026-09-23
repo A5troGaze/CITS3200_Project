@@ -47,7 +47,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--domain-id", type=int, default=config.DOMAIN_ID)
     parser.add_argument("--interface", default=config.INTERFACE)
-    parser.add_argument("--dt", type=float, default=config.SIMULATE_DT, help="physics step (s)")
+    parser.add_argument("--dt", type=float, default=0.002,
+                        help="physics step (s). The MJCF's own 0.002; the stock launcher uses 0.005, where "
+                             "the explicit PD on the light wrist joints is close to unstable")
     parser.add_argument("--viewer-fps", type=float, default=15.0,
                         help="viewer refresh rate; the VM renders in software, so lower is lighter")
     parser.add_argument("--state-hz", type=float, default=50.0,

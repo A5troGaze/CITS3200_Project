@@ -1,13 +1,13 @@
 """
-Synthetic MediaPipe-world-landmark bodies for testing retarget_upper_body.py
+Synthetic MediaPipe-world-landmark bodies for testing the retargeting pipeline
 without a camera. All landmarks are plain {x, y, z, visibility} dicts in
 MediaPipe's own world-landmark frame (x right-in-image, y down,
 z toward-camera-negative) -- exactly what leader_pose.py exports and what
-Retargeter.step() consumes.
+MimicPipeline.step() consumes.
 
-Only indices used by torso_frame()/arm_angles() are given real values
-(shoulders 11/12, elbows 13/14, wrists 15/16, hips 23/24); every other
-index is a harmless placeholder since nothing else touches them.
+Only the landmarks the retargeting uses are given real values (shoulders
+11/12, elbows 13/14, wrists 15/16, hips 23/24); every other index is a
+harmless placeholder. synthetic_poses.py has complete 33-landmark bodies.
 
 Rough body dimensions (metres): hip half-width 0.09, shoulder half-width
 0.175, torso (hip-to-shoulder) height 0.5, upper arm 0.28, forearm 0.25.

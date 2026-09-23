@@ -1,8 +1,5 @@
 import math
 
-import pytest
-
-from retarget_upper_body import Retargeter
 from pose_fixtures import rotate_about_vertical, t_pose_elbows_bent_90
 
 ONE_DEG = math.radians(1)
@@ -14,12 +11,19 @@ ARM_JOINTS = [
 ]
 
 
-def test_same_body_rotated_30_degrees_gives_same_angles():
+def _solve(pipeline, landmarks):
+    pipeline.reset()
+    for i in range(3):
+        result = pipeline.step(landmarks, i / 30.0)
+    return result
+
+
+def test_same_body_rotated_30_degrees_gives_same_angles(pipeline):
     body = t_pose_elbows_bent_90()
     rotated = rotate_about_vertical(body, 30)
 
-    result_a = Retargeter().step(body, frame_id=0, dt=1.0)
-    result_b = Retargeter().step(rotated, frame_id=0, dt=1.0)
+    result_a = _solve(pipeline, body)
+    result_b = _solve(pipeline, rotated)
 
     for joint in ARM_JOINTS:
         a, b = result_a.q[joint], result_b.q[joint]

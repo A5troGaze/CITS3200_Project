@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from retarget_upper_body import mediapipe_to_robot
+from mediapipe_to_gmr import mediapipe_to_robot
 
 
 def test_point_toward_camera_maps_to_robot_forward():

@@ -29,8 +29,11 @@ from abstract_controller import AbstractGestureController
 
 # Gesture -> (vx, vy, wz). Same semantic units/signs as the rest of the project.
 GESTURE_CMD = {
-    "turn_right":                (0.0,  0.0, -0.2),
-    "turn_left":                 (0.0,  0.0,  0.2),
+    # Bumped from 0.2 -> 0.4: forward/back/strafe (0.3-0.5) all worked, but
+    # turning didn't -- 0.2 was likely sitting right in the right stick's
+    # deadzone. Tune further if this overshoots or still doesn't register.
+    "turn_right":                (0.0,  0.0, -0.4),
+    "turn_left":                 (0.0,  0.0,  0.4),
     "move_right":                (0.0, -0.3,  0.0),
     "move_left":                 (0.0,  0.3,  0.0),
     "move_forward_left_hand":    (0.5,  0.0,  0.0),

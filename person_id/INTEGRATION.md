@@ -5,11 +5,46 @@ It was read on the branches `Walking-Policy-Test`, `New-Gestures` and `Simulatio
 (Chris), and `CycloneDDS-Simulation` / `Camera-Source` (Mengfei), as of
 2026-09-23.
 
+## Update 2026-09-23: rl_lab balance, arms-only person_id
+
+person_id now mimics the **arms only** and uses unitree_rl_lab's velocity
+policy for balance, loaded the same way as the gesture team's
+`rl_lab_walking_test.py` (same observation, action and gains;
+`rl_lab_policy.py`). Their open question (is the observation's joint
+state in policy order?) is answered by unitree_rl_lab's
+`deploy/include/unitree_articulation.h`: yes. Their assumption was right.
+
+Two findings affect both teams:
+
+1. **Run the policy in simulated time.** From a separate process it steps
+   every 20 ms of wall-clock time. When the VM slows the simulator to
+   0.4-0.8x real time (common here), the policy's observation history no
+   longer matches the physics, and in our DDS runs the robot fell at
+   random, even with the arms still. `sim_standing.py --rl-lab` runs the policy
+   inside the simulator, stepped with the physics. The robot then stood
+   through all our tests, including arm motion.
+2. **Overriding the arms of a walking policy** works only if the policy is
+   shown its arms at its default pose, and the arms move at <= ~1 rad/s
+   (details in `rl_lab_policy.py`). Showing it the real, overridden arm
+   state knocked it over in 8 of 10 test poses.
+
+That gives the sim the same shape as the real robot: the simulator plays
+Unitree's on-board locomotion (rl_lab policy, legs + waist), and person_id
+sends arm commands on `rt/arm_sdk` with the blend weight in
+`motor_cmd[29].q`. So person_id uses one code path (`arm_sdk_publisher.py`)
+for the sim and the G1. The gesture team's walking could plug into the same
+simulator: feed its velocity command (`vx, vy, vyaw`) to the on-board
+policy instead of (0, 0, 0), e.g. from `rt/wirelesscontroller`, which
+their virtual-gamepad bridge already produces. That would give "walk by
+gesture + arms by person_id" in the sim with no publishers fighting.
+Not implemented; team decision.
+
 ## Who publishes what today
 
 | Component | Sim (unitree_mujoco, domain 1, `lo`) | Real robot (domain 0) |
 | --- | --- | --- |
-| person_id (`mujoco_pose_controller.py`) | `rt/lowcmd`, all 29 motors at 200 Hz. Arms + waist tracked; legs held (default) or limp (`--commanded-only`) | `rt/arm_sdk`, waist + arms only, weight in `motor_cmd[29].q` (`arm_sdk_publisher.py`, `--real`) |
+| person_id, default (`--balance onboard`) | `rt/arm_sdk`, arms only, to `sim_standing.py --rl-lab` (rl_lab policy balances in the simulator) | `rt/arm_sdk`, arms only, weight in `motor_cmd[29].q` (`arm_sdk_publisher.py`, `--real`) |
+| person_id, `--balance none` (`mujoco_pose_controller.py`) | `rt/lowcmd`, all 29 motors at 200 Hz; legs/waist held; pinned or band-held robot | n/a |
 | Gesture reaction (`simulation_controller.SimController`) | `rt/lowcmd`, all 29 motors at 500 Hz, holding a home pose plus the gesture's joint offsets | `real_controller.RealController`: `LocoClient.Move(vx, vy, vyaw)`, Unitree's own locomotion |
 | Walking policy (`rl_lab_walking_test.py`: unitree_rl_lab's whole-body ONNX velocity policy; `gesture_to_vgamepad.py` drives the C++ deploy through a virtual pad) | `rt/lowcmd`, all 29 motors **including the arms**, which are part of the policy's output | n/a (LocoClient above) |
 

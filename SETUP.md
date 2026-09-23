@@ -220,7 +220,19 @@ edited. GMR's Xsens BVH loader imports PyQt6 (for a GUI it doesn't need), so
 required.
 
 ---
-9. **Install pytest (person_id tests):**
+9. **unitree_rl_lab (balance policy for the person_id sim) and onnxruntime:**
+```bash
+cd ~/CITS3200/Dependencies
+git clone https://github.com/unitreerobotics/unitree_rl_lab.git   # only its deploy/ policy files are used
+pip3 install onnxruntime pyyaml
+```
+No IsaacLab or training needed: person_id loads
+`deploy/robots/g1_29dof/config/policy/velocity/v0/exported/policy.onnx` and its
+`params/deploy.yaml` (commit 4960b84 tested). Same setup as the gesture
+team's `rl_lab_walking_test.py`.
+
+---
+10. **Install pytest (person_id tests):**
 ```bash
 pip3 install pytest
 cd ~/CITS3200/Project && python3 -m pytest person_id/tests -q   # ~20 s, no camera or simulator needed

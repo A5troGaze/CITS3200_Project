@@ -1,13 +1,17 @@
 # Running person_id
 
-The simulated Unitree G1 copies the selected leader's arms and torso from
-the camera. Pipeline:
+The simulated Unitree G1 copies the selected leader's arms from the camera,
+while unitree_rl_lab's walking policy keeps it balanced. Pipeline:
 
 ```
 camera -> MediaPipe pose (up to 4 people) -> click-selected leader
        -> one-euro filter -> visibility gate -> GMR retargeting
-       -> G1 joint targets -> unitree_mujoco (rt/lowcmd)
+       -> G1 arm joint targets -> rt/arm_sdk -> simulator, where the rl_lab
+          policy balances the legs and waist (like Unitree's firmware on the real G1)
 ```
+
+The waist and legs are never mimicked: they belong to the balance
+controller, and moving them would upset it.
 
 One-time setup is in `../SETUP.md` (g1-env, GMR, unitree_mujoco, the pose
 model). Every terminal starts with:
@@ -21,7 +25,8 @@ cd ~/CITS3200/Project/person_id
 | --- | --- |
 | Tests (no camera, no sim) | `python3 -m pytest tests -q` |
 | Camera, no robot | `python3 leader_pose.py --dry-run` |
-| Sim, robot standing (no band) | `python3 sim_standing.py` |
+| Sim, robot balanced by rl_lab | `python3 sim_standing.py --rl-lab` |
+| Sim, robot pinned standing | `python3 sim_standing.py` (then `leader_pose.py --balance none`) |
 | Camera into the sim | `python3 leader_pose.py` (sim running) |
 | Client proof video | `python3 leader_pose.py --record-demo demo.mp4` |
 | Record for later | `python3 leader_pose.py --dry-run --export-landmarks exports/session.json` |
@@ -50,28 +55,39 @@ FPS, GMR time per frame, and the status of each limb:
 
 ## 2. Full simulation
 
-**Terminal 1: simulator (robot standing on the floor)**
+**Terminal 1: simulator, balanced by unitree_rl_lab**
 ```bash
-python3 sim_standing.py
+python3 sim_standing.py --rl-lab
 ```
-This runs unitree_mujoco (same scene, bridge, topics and DDS settings) with
-the G1's pelvis pinned at standing height: feet on the floor, no elastic
-band, no swinging. person_id doesn't balance the robot. Turning the band
-off in the stock sim (`9`) makes the G1 fall: we tested holding the legs
-at up to 6x the SDK gains and it still falls within seconds. Every 10 s it
-prints its speed relative to real time; it should say ~1.0x.
+This runs unitree_mujoco (same scene, bridge and DDS settings) with
+unitree_rl_lab's pretrained G1 velocity policy
+(`~/CITS3200/Dependencies/unitree_rl_lab`, see SETUP.md) running inside the
+simulator, the way Unitree's locomotion runs on board the real robot. The
+robot stands up on the elastic band for 5 s. The band then fades out between
+6 and 8 s, and from then on the policy keeps it standing. Arm commands come
+in on `rt/arm_sdk`, blended by the arm_sdk weight, exactly as on the G1.
+It prints its speed (should be ~1.0x) and pelvis height every 10 s, and
+`ROBOT FELL` if it falls; press `9` to re-attach the band.
 Options: `--viewer-fps 10` (lighter), `--headless` (no window).
 
-The stock simulator still works (`cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
-&& python3 unitree_mujoco.py`), with the robot hanging from the band. Press
-`8` 4-5 times so its feet touch the floor.
+The policy is run the way the gesture team's
+`rl_lab_walking_test.py` runs it (same observation, action and gains; see
+`rl_lab_policy.py`), but in simulated time. Run from a separate process,
+its timing drifts whenever the VM slows the simulator down, and the robot
+falls at random (`--balance rl_lab` does that, for comparison).
+
+Without balance: `python3 sim_standing.py` pins the pelvis at standing
+height (no band, no policy); use it with `leader_pose.py --balance none`.
+The stock simulator (`cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
+&& python3 unitree_mujoco.py`) also works with `--balance none`, the robot
+hanging from the band.
 
 **Terminal 2: person_id**
 ```bash
 python3 leader_pose.py
 ```
-Click the leader. The robot's arms and waist follow once a leader is
-selected. Stop with `q`, Esc or Ctrl-C (or unplug the camera): the arms ease
+Wait until the simulator has released the band and the robot is standing
+(about 8 s), then click the leader: the robot's arms follow. Stop with `q`, Esc or Ctrl-C (or unplug the camera): the arms ease
 back to where they started, then publishing stops.
 
 Useful options (all entry points):
@@ -79,10 +95,12 @@ Useful options (all entry points):
 | Option | Effect |
 | --- | --- |
 | `--mirror` | Mirror mode: your left arm drives the robot's right arm. Default is anatomical (left drives left). |
-| `--waist yaw` / `--waist off` | Only mimic waist yaw / keep the torso upright (use `yaw` on a waist-locked G1). |
-| `--commanded-only` | Joints not mimicked (legs) are left limp (kp = kd = 0) instead of held. |
-| `--legs` | Also command the legs. Sim only, band on; balance is out of scope. |
-| `--max-speed 5` | Command speed cap in rad/s. |
+| `--balance onboard` (default) / `rl_lab` / `none` | Who balances the sim robot: the simulator's on-board rl_lab policy (arms sent on rt/arm_sdk); the policy run inside person_id like `rl_lab_walking_test.py`; or nobody (pinned or band-held sim, arms on rt/lowcmd). |
+| `--arm-speed 1.0` | Arm speed cap (rad/s) while the policy balances. At 2 rad/s, fast two-arm moves (arms forward, then overhead) knock the robot over; 1 rad/s held in all our tests. |
+| `--waist off` (default) / `yaw` / `3dof` | Torso mimicry. Keep `off` with a balance policy; `yaw`/`3dof` only with `--balance none`. |
+| `--commanded-only` | `--balance none`: joints not mimicked are left limp (kp = kd = 0) instead of held. |
+| `--legs` | `--balance none`, pinned sim only: also command the legs. |
+| `--max-speed 5` | `--balance none`: command speed cap in rad/s. |
 | `--min-visibility 0.5` | MediaPipe visibility below which a limb is held, then eased to neutral. |
 | `--num-people N`, `--max-match-frac 0.2`, `--leader-lost-frames 15` | Detection and leader tracking. |
 | `--dds-domain 1 --dds-interface lo` | Must match `simulate_python/config.py` (these are the defaults). |
@@ -166,10 +184,13 @@ settings differ. `simulate_python/config.py` must have `DOMAIN_ID = 1` and
 one program may publish `rt/lowcmd` at a time (see INTEGRATION.md). The
 message `selected interface "lo" is not multicast-capable` is normal.
 
-**Robot falls over / flies / swings.** Use `sim_standing.py`. In the stock
-sim the band must stay on (person_id never balances). There the robot hangs
-with its feet off the floor and swings when its arms move; press `8` until
-the feet touch.
+**Robot falls over.** With `sim_standing.py --rl-lab`: check the sim prints
+~1.0x real time, keep `--arm-speed` at 1.0, and avoid snapping both arms
+forward/overhead. The pretrained walking policy only feels the arms as a
+push. Press `9` to re-attach the band, then `9` again to release it.
+Without the rl_lab option, person_id never balances: use `sim_standing.py`
+(pinned). In the stock sim the band must stay on; the robot hangs with its
+feet off the floor and swings when its arms move.
 
 **"sim speed 0.3x real time" / everything lags or jerks.** The VM isn't
 getting CPU time from the host. On the team VM, gnome-shell alone uses a

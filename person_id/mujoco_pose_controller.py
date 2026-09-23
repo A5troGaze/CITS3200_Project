@@ -4,7 +4,8 @@ person_id joint targets. SIMULATOR ONLY: never run this against a real robot
 
 * Targets arrive as {motor_index: angle_rad} at vision rate (~30 Hz) and are
   validated (finite, allowed joint, clamped to the real limits).
-* A fixed-rate thread (default 500 Hz) shapes them (command_shaping.py:
+* A fixed-rate thread (default 200 Hz, the simulator's own step rate:
+  unitree_mujoco only applies a command on its next mj_step) shapes them (command_shaping.py:
   low-pass + velocity cap + engage ramp) and publishes LowCmd with the SDK
   example's KP/KD (g1_gains.py) and a gravity feed-forward `tau` for the
   commanded joints (g1_sim.GravityComp), so the SDK's gains do not let the
@@ -71,7 +72,7 @@ def validate_targets(targets, allowed):
 class MujocoPoseController:
     """Publish person_id joint targets to unitree_mujoco over rt/lowcmd."""
 
-    def __init__(self, domain_id=1, interface="lo", control_hz=500.0, max_command_speed=5.0,
+    def __init__(self, domain_id=1, interface="lo", control_hz=200.0, max_command_speed=5.0,
                  smoothing_tau=0.05, commanded_only=False, gravity_comp=True, allow_legs=False):
         if control_hz <= 0:
             raise ValueError("control_hz must be greater than zero")
@@ -88,9 +89,10 @@ class MujocoPoseController:
         if gravity_comp:
             from g1_sim import GravityComp
 
-            self.gravity = GravityComp()
+            self.gravity = GravityComp(floating=True)
         self.low_state = None
         self.latest_q = None
+        self.latest_quat = None
         self.mode_machine = 0
         self.ready = threading.Event()
         self.stop_event = threading.Event()
@@ -124,9 +126,11 @@ class MujocoPoseController:
 
     def _on_low_state(self, msg):
         q = np.array([msg.motor_state[i].q for i in range(G1_NUM_MOTOR)])
+        quat = np.array(msg.imu_state.quaternion, dtype=float)  # w, x, y, z (pelvis IMU)
         with self.lock:
             self.low_state = msg
             self.latest_q = q
+            self.latest_quat = quat
         if not self.ready.is_set():
             # The first simulator state is the safe start / return pose.
             self.mode_machine = msg.mode_machine
@@ -184,10 +188,33 @@ class MujocoPoseController:
         with self.lock:
             return self.shaper.q.copy()
 
-    def stop(self):
+    def stop(self, release=True):
+        """Stop publishing. unitree_mujoco keeps applying the torque computed
+        from the LAST LowCmd it received (LowCmdHandler only runs on a new
+        message), which would push the joints onto their limits once we go
+        quiet. So the last messages sent are a release: kp = kd = tau = 0 on
+        every joint, i.e. zero torque, and the robot simply hangs."""
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=2.0)
+        if release and self.publisher is not None:
+            for _ in range(5):
+                self._write_release()
+                time.sleep(self.control_dt)
+
+    def _write_release(self):
+        self.low_cmd.mode_pr = Mode.PR
+        self.low_cmd.mode_machine = self.mode_machine
+        for i in range(G1_NUM_MOTOR):
+            motor = self.low_cmd.motor_cmd[i]
+            motor.mode = 1
+            motor.q = 0.0
+            motor.dq = 0.0
+            motor.kp = 0.0
+            motor.kd = 0.0
+            motor.tau = 0.0
+        self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+        self.publisher.Write(self.low_cmd)
 
     # -- control loop ----------------------------------------------------------
     def _run(self):
@@ -207,7 +234,8 @@ class MujocoPoseController:
             q_cmd = self.shaper.tick()
             active = set(self.active)
             measured = self.latest_q.copy() if self.latest_q is not None else q_cmd
-        tau = self.gravity(measured) if self.gravity is not None else np.zeros(G1_NUM_MOTOR)
+            quat = self.latest_quat
+        tau = self.gravity(measured, quat) if self.gravity is not None else np.zeros(G1_NUM_MOTOR)
         rows = []
         for i in range(G1_NUM_MOTOR):
             if i in active:

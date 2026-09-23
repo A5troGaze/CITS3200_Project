@@ -83,24 +83,37 @@ def angle_deg(a, b):
 
 class GravityComp:
     """Gravity torque per motor (N*m, motor-index order) for a joint
-    configuration of the fixed-base G1, pelvis upright. Sent as the LowCmd
-    feed-forward `tau`, so the PD term only has to correct tracking error
-    instead of also holding the arms and upper body up against gravity
-    (with the SDK's KP = 40, gravity alone sags a horizontal arm or a
-    leaning torso by 10-30 degrees)."""
+    configuration of the G1. Sent as the LowCmd feed-forward `tau`, so the PD
+    term only has to correct tracking error instead of also holding the arms
+    and upper body up against gravity (with the SDK's KP = 40, gravity alone
+    sags a horizontal arm or a leaning torso by 10-30 degrees).
 
-    def __init__(self, model=None):
+    floating=True uses the floating-base model and the pelvis orientation
+    (the pelvis IMU quaternion from rt/lowstate, w x y z). The joint rows of
+    the gravity vector depend only on that orientation, not on how the base
+    is held (elastic band, feet, or the robot's own balance controller).
+    On the band the sim G1 hangs pitched by ~15 deg, which is enough to
+    leave a 3-4 deg steady-state error if the pelvis is assumed upright.
+    floating=False assumes an upright, fixed pelvis (the offline PdSim)."""
+
+    def __init__(self, model=None, floating=False):
         import mujoco
 
         self._mujoco = mujoco
-        self.model = model if model is not None else load_sim_model(fixed_base=True)
+        self.floating = floating
+        self.model = model if model is not None else load_sim_model(fixed_base=not floating)
         self.data = mujoco.MjData(self.model)
+        self.data.qpos[:] = self.model.qpos0
         self.qadr = np.array([self.model.jnt_qposadr[self.model.actuator_trnid[i, 0]] for i in range(self.model.nu)])
         self.dadr = np.array([self.model.jnt_dofadr[self.model.actuator_trnid[i, 0]] for i in range(self.model.nu)])
 
-    def __call__(self, q_motor):
+    def __call__(self, q_motor, base_quat_wxyz=None):
         d = self.data
         d.qpos[self.qadr] = q_motor
+        if self.floating:
+            quat = np.array([1.0, 0.0, 0.0, 0.0]) if base_quat_wxyz is None else np.asarray(base_quat_wxyz, float)
+            n = np.linalg.norm(quat)
+            d.qpos[3:7] = quat / n if n > 1e-6 else (1.0, 0.0, 0.0, 0.0)
         d.qvel[:] = 0.0
         self._mujoco.mj_forward(self.model, d)
         return d.qfrc_bias[self.dadr].copy()

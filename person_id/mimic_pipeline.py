@@ -77,6 +77,10 @@ class MimicPipeline:
         objects or a (33, 3|4) array); `t`: seconds (monotonic)."""
         t0 = time.perf_counter()
         c0 = time.thread_time()
+        if landmarks is None:
+            # No leader this frame: every segment is unseen, so the gate
+            # holds the last pose, then eases to neutral.
+            return self._finish(self._unseen(), t, t0, c0)
         arr = landmarks_to_array(landmarks)
         bad = ~np.all(np.isfinite(arr[:, :3]), axis=1)
         if np.any(bad):
@@ -93,8 +97,15 @@ class MimicPipeline:
             measured = measure_segments(arr, min_visibility=self.min_visibility)
             measured.valid = {k: measured.valid[k] and valid[k] for k in valid}
         except ValueError:
-            measured = self.gate.neutral.copy()
-            measured.valid = {k: False for k in SEGMENT_LANDMARKS}
+            measured = self._unseen()
+        return self._finish(measured, t, t0, c0)
+
+    def _unseen(self):
+        seg = self.gate.neutral.copy()
+        seg.valid = {k: False for k in SEGMENT_LANDMARKS}
+        return seg
+
+    def _finish(self, measured, t, t0, c0):
         segments, status = self.gate.update(measured, t)
         t1 = time.perf_counter()
         human, weights, info = self.builder.build(segments)

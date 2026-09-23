@@ -117,6 +117,13 @@ def run_live(args):
 
     model_path = resolve_model_path(args.model)
     cap, frame_w, frame_h, fps, is_live_camera = open_capture(args.input, args.width, args.height)
+    # Some cameras (the VirtualBox webcam passthrough) ignore the requested
+    # size and send 1280x720. Downscale to the requested width so detection,
+    # drawing and recording don't pay for pixels nobody needs.
+    scale = min(1.0, args.width / frame_w)
+    if scale < 1.0:
+        frame_w, frame_h = int(round(frame_w * scale)), int(round(frame_h * scale))
+        print(f"Downscaling camera frames to {frame_w}x{frame_h}.")
     frame_diag = math.hypot(frame_w, frame_h)
     writer = open_video_writer(args.output, fps, frame_w, frame_h)
     landmarker = build_landmarker(model_path, args.num_people, args.min_detection_confidence,
@@ -166,6 +173,8 @@ def run_live(args):
                     continue
                 break
             failed_reads = 0
+            if scale < 1.0:
+                frame = cv2.resize(frame, (frame_w, frame_h), interpolation=cv2.INTER_AREA)
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             timestamp_ms = make_timestamp(is_live_camera, start_time, frame_index, fps)

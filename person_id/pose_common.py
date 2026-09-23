@@ -147,10 +147,8 @@ def open_capture(input_arg, width, height):
     # cap.set() can fail silently if the driver rejects the request — check
     # what was actually negotiated instead of assuming it worked.
     if is_live_camera and (frame_w, frame_h) != (width, height):
-        print(f"WARNING: requested {width}x{height} but the input is "
-              f"actually delivering {frame_w}x{frame_h}. The driver ignored "
-              "the request — run `v4l2-ctl --device=/dev/video0 "
-              "--list-formats-ext` to see what it actually supports.")
+        print(f"Note: requested {width}x{height}, camera delivers {frame_w}x{frame_h} "
+              "(`v4l2-ctl --device=/dev/video0 --list-formats-ext` lists its modes).")
 
     return cap, frame_w, frame_h, fps, is_live_camera
 

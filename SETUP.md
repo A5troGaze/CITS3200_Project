@@ -3,13 +3,15 @@
 ## Dependencies
 
 ### Project Dependencies
-- Python >= 3.8
+- Python >= 3.10 (GMR requires 3.10+; g1-env on the team VM is 3.10.12)
 - cyclonedds == 0.10.2
 - unitree_sdk2_py 1.0.1
 - MediaPipe 1.0.0
 - Mujoco 3.11.0
-- pinocchio 4.1.0
-- GMR 0.2.0
+- GMR 0.2.0 (commit bb1bbe4 tested), which pulls in mink, daqp/proxqp, scipy, smplx, torch
+- pytest (person_id test suite)
+- pinocchio 4.1.0: no longer used by person_id (GMR replaced the Pinocchio
+  retargeter), kept here only in case another subgroup needs it
 
 
 ## Development Setup:
@@ -211,6 +213,19 @@ python3 -c "import general_motion_retargeting; print('GMR OK')"         # Verify
 ```
 You may see a line saying `xrobotoolkit_sdk not found, skip for now` — that's just an informational notice about an optional VR-streaming feature we're not using. Not an error.
 
+person_id uses GMR as a library with its own IK config
+(`person_id/configs/mediapipe_to_g1.json`); nothing inside the GMR clone is
+edited. GMR's Xsens BVH loader imports PyQt6 (for a GUI it doesn't need), so
+`person_id/xsens_replay.py` uses GMR's BVH parser directly and PyQt6 is not
+required.
+
+---
+9. **Install pytest (person_id tests):**
+```bash
+pip3 install pytest
+cd ~/CITS3200/Project && python3 -m pytest person_id/tests -q   # ~20 s, no camera or simulator needed
+```
+
 ---
 
 ### Step 6: Verify All Installs
@@ -237,10 +252,22 @@ If this prints `All 5 dependencies OK` with no errors, the environment is full s
 
 ## Person ID / MuJoCo bridge
 
-This is the extra setup needed for `person_id/leader_pose.py --mujoco` and
-`person_id/mujoco_link.py`: mirroring the leader's arms on a simulated G1.
-See `person_id/RUNNING_leader_pose.md` for how to actually run it once this
-is installed.
+This is the extra setup needed for `person_id/leader_pose.py`: the simulated
+G1 copying the selected leader's arms and torso. See `person_id/RUNNING.md`
+for how to actually run it once this is installed.
+
+### 0. Pose model
+
+`leader_pose.py` looks for the MediaPipe pose model at
+`~/CITS3200/Dependencies/Models/pose_landmarker.task` (override with
+`--model` or `CITS3200_MODELS_DIR`):
+```bash
+mkdir -p ~/CITS3200/Dependencies/Models
+# Download a Pose Landmarker .task model from MediaPipe's "Pose landmark
+# detection" guide (models section) and save it as:
+ls -la ~/CITS3200/Dependencies/Models/pose_landmarker.task   # several MB, not 0 bytes
+```
+Never commit it: `*.task` is gitignored in `person_id/`.
 
 ### 1. Clone and build unitree_mujoco
 
@@ -262,19 +289,17 @@ Edit `~/CITS3200/Dependencies/unitree_mujoco/simulate_python/config.py`:
 ```python
 ROBOT = "g1"
 # ROBOT_SCENE is derived from ROBOT automatically: "../unitree_robots/g1/scene.xml"
-DOMAIN_ID = 1     # matches mujoco_link.py's --dds-domain default
-INTERFACE = "lo"  # matches mujoco_link.py's --dds-interface default
-ENABLE_ELASTIC_BAND = True  # arm-only mirroring: legs/waist are held, not balanced
+DOMAIN_ID = 1     # matches leader_pose.py's --dds-domain default
+INTERFACE = "lo"  # matches leader_pose.py's --dds-interface default
+ENABLE_ELASTIC_BAND = True  # upper-body mimicry only: the legs are held, not balanced
 ```
 
 `unitree_robots/g1/scene.xml` (confirmed by reading the file, not assumed)
 includes `g1_29dof.xml` — the same 29-DOF-no-hands variant
 `person_id/g1_joint_limits.py` is built from, *not* `scene_23dof.xml`.
-Before trusting `leader_pose.py --mujoco` output against this scene, run
-`check_dof_count()` (from `g1_joint_limits.py`) against that scene's joint
-names (or against a live `LowState_`'s `motor_state` indices) to confirm
-they still match — this is exactly the silent-mismatch case that function
-exists to catch if the scene file is ever swapped.
+`person_id/tests/test_g1_mapping.py` checks the joint-name / motor-index
+mapping against this scene automatically, so a swapped scene file fails the
+test suite instead of silently driving the wrong joints.
 
 ### 3. Run it
 
@@ -283,9 +308,11 @@ cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
 python3 unitree_mujoco.py
 ```
 
-A MuJoCo window opens with the G1 standing. Since this pipeline only
-commands the arms and holds legs/waist at whatever they currently are
-(never balances or walks), enable the elastic band (`ENABLE_ELASTIC_BAND`
-above) so the robot hangs instead of falling over: once loaded, press `9`
-to activate/release the band, `7` to lower the robot, `8` to lift it
-(these bindings are unitree_mujoco's own, not this project's).
+A MuJoCo window opens with the G1. Since this pipeline only commands the
+arms and waist and holds the legs where they start (it never balances or
+walks), keep the elastic band on (`ENABLE_ELASTIC_BAND` above) so the robot
+hangs instead of falling over. Keys, in the MuJoCo window: `9` toggles the
+band, `8` lowers the robot (lengthens the band), `7` lifts it (shortens it);
+these bindings are unitree_mujoco's own, not this project's. By default the
+robot hangs with its feet ~0.4 m off the floor and swings when its arms
+move; press `8` about 4-5 times until the feet just touch the floor.

@@ -16,7 +16,7 @@ This match only holds as long as everyone uses the same asset consistently. Two 
 - Someone switches to `g1_23dof_*` (locked/absent waist roll+pitch, 5-DOF arms, no wrist pitch/yaw) or `g1_29dof_with_hand_*` (29 + 7×2 hand DOF) for one part of the pipeline but not another — e.g. simulate in MuJoCo with 23-DOF but send commands assuming 29.
 - Your **actual physical unit** isn't the 29-DOF-no-hands variant. This can't be confirmed from code; check it in-app: **Device → Data → Robot → Machine Type**, and cross-reference against the table in `unitree_ros/robots/g1_description/README.md`.
 
-`g1_joint_limits.py` (attached) includes `check_dof_count()` for exactly this — feed it whatever your pipeline treats as "the robot's joints" at each stage and it flags a mismatch instead of letting it fail silently downstream.
+`person_id/g1_joint_limits.py` (moved there so the pipeline can import it directly; a pointer is left in this directory) includes `check_dof_count()` for exactly this — feed it whatever your pipeline treats as "the robot's joints" at each stage and it flags a mismatch instead of letting it fail silently downstream.
 
 ### 2. Joint angle limits: already enforced correctly, nothing to fix
 
@@ -36,7 +36,7 @@ This is the actual gap.
   ```
   That's not a safety bug by itself — 9.42 rad/s is below every joint's real max in the table below, so it can't ask a motor to exceed its rated speed. But it isn't "matching the model's limitations" either: it caps arm joints (rated 37 rad/s) at a quarter of their real speed while treating them the same as hip/knee joints (rated 20-32 rad/s), which is arbitrary rather than derived from the robot.
 
-Fix is mechanical: build the `VELOCITY_LIMITS` dict from real per-joint numbers instead of the flat constant, and make sure `use_velocity_limit=True` is actually passed at the call site. `g1_joint_limits.py` has the exact per-joint values and the two-line patch is in a comment at the bottom of that file.
+Fix is mechanical: build the `VELOCITY_LIMITS` dict from real per-joint numbers instead of the flat constant, and make sure `use_velocity_limit=True` is actually passed at the call site. `person_id/g1_joint_limits.py` has the exact per-joint values and the two-line patch is in a comment at the bottom of that file.
 
 One more thing worth being explicit about: IK-time velocity limiting only constrains the *solve*. Whatever turns retargeted frames into the actual `LowCmd` stream sent over `unitree_sdk2py` (frame-rate conversion, interpolation, any smoothing, teleop network jitter) sits downstream of IK and isn't covered by `mink.VelocityLimit` at all. If that assembly step can introduce a large position jump between consecutive commands, effective velocity can exceed the IK-time bound even with everything above fixed. `g1_joint_limits.py` includes `validate_command()` for exactly that — run it as a last check on the per-tick command dict right before it goes out, not just at IK time.
 
@@ -74,7 +74,7 @@ One more thing worth being explicit about: IK-time velocity limiting only constr
 | 27 | right_wrist_pitch | -1.6144 | 1.6144 | -92.5 | 92.5 | 22 | 5 |
 | 28 | right_wrist_yaw | -1.6144 | 1.6144 | -92.5 | 92.5 | 22 | 5 |
 
-This table (as literal Python constants, plus the validation/clamp helper functions referenced above) is in the attached `g1_joint_limits.py`.
+This table (as literal Python constants, plus the validation/clamp helper functions referenced above) is in `person_id/g1_joint_limits.py`.
 
 ### 5. What this doesn't cover
 

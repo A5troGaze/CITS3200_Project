@@ -42,13 +42,17 @@ BAND_RELEASE_DELAY = 3.0
 MUJOCO_WINDOW_NAME = "MuJoCo"  # -- VERIFY against your actual window title
 
 
-def send_key_to_mujoco(key: str):
-    """Automates the elastic-band viewer shortcuts (7/8/9) -- these
-    have no DDS/gamepad equivalent, they're MuJoCo-viewer-only."""
-    subprocess.run(
-        ["xdotool", "search", "--name", MUJOCO_WINDOW_NAME, "key", "--window", "%1", key],
-        check=False,
-    )
+def send_key_to_mujoco(key: str, times: int = 1, interval: float = 0.05):
+    """Sends `key` to the MuJoCo window `times` times, with a short pause
+    between presses so each one registers as a separate GLFW_PRESS event
+    (each press of '8' only loosens the band by 0.1m -- see ElasticBand::length_
+    in unitree_mujoco's main.cc)."""
+    for _ in range(times):
+        subprocess.run(
+            ["xdotool", "search", "--name", MUJOCO_WINDOW_NAME, "key", "--window", "%1", key],
+            check=False,
+        )
+        time.sleep(interval)
 
 
 class GestureGamepadBridge:
@@ -56,7 +60,7 @@ class GestureGamepadBridge:
         self.gamepad = vg.VX360Gamepad()
         self.current_gesture = None
 
-    def _pulse(self, press_fn, release_fn, hold_seconds=0.3):
+    def _pulse(self, press_fn, release_fn, hold_seconds=1.5):
         press_fn()
         self.gamepad.update()
         time.sleep(hold_seconds)
@@ -65,29 +69,41 @@ class GestureGamepadBridge:
 
     def startup_sequence(self):
         input("Virtual gamepad is live. Start unitree_mujoco, then g1_ctrl "
-              "in their own terminals, then press Enter here to begin...")
+            "in their own terminals, then press Enter here to begin...")
 
         print("Standing up (L2 + Up)...")
-        self._pulse(
-            lambda: (self.gamepad.left_trigger_float(value_float=1.0),
-                     self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)),
-            lambda: (self.gamepad.left_trigger_float(value_float=0.0),
-                     self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)),
-        )
-        time.sleep(STAND_SETTLE_DELAY)
+        # LT is a smoothed Axis (see unitree_joystick.hpp), Up is an instant Button.
+        # Pressing both at once makes Up's on_pressed edge fire before LT finishes
+        # ramping up, so "LT + up.on_pressed" never lines up. Hold LT alone first.
+        self.gamepad.left_trigger_float(value_float=1.0)
+        self.gamepad.update()
+        time.sleep(2.0)  # let LT's smoothed value cross threshold on both ends
+        self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)
+        self.gamepad.update()
+        time.sleep(1.0)  # hold the combo briefly so g1_ctrl definitely samples it
+        self.gamepad.left_trigger_float(value_float=0.0)
+        self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)
+        self.gamepad.update()
+        input("Watch the MuJoCo window. Once the robot has risen into its FixStand "
+            "pose and stopped moving, press Enter to ground its feet...")
 
         print("Grounding feet (viewer key 8)...")
-        send_key_to_mujoco("8")
-        time.sleep(GROUND_CONTACT_DELAY)
+        while True:
+            send_key_to_mujoco("8", times=5)  # +0.5m of slack per batch
+            answer = input("Are the robot's feet now touching the ground? "
+                            "[Enter = not yet, loosen more] [d = done, feet are down]: ")
+            if answer.strip().lower() == "d":
+                break
+        input("Press Enter once you're ready to start the walking policy (R1 + X)...")
 
         print("Running policy (R1 + X)...")
         self._pulse(
-            lambda: (self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER),
-                     self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
-            lambda: (self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER),
-                     self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
+            lambda: (self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER), self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
+            lambda: (self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER), self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
         )
-        time.sleep(BAND_RELEASE_DELAY)
+        input("Watch the robot closely -- it should look actively balancing (small "
+            "continuous joint motion), not limp or static. Once it looks stable "
+            "and alive, press Enter to release the elastic band...")
 
         print("Releasing band (viewer key 9)...")
         send_key_to_mujoco("9")

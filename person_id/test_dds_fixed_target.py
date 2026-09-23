@@ -1,6 +1,6 @@
 """Manual MuJoCo integration test for the CycloneDDS path (SIMULATOR ONLY).
 
-Start unitree_mujoco first (elastic band on), then:
+Start the simulator first (sim_standing.py, or unitree_mujoco with the band on), then:
 
     python3 test_dds_fixed_target.py
 
@@ -68,7 +68,7 @@ def main():
         controller.init()
         controller.start()
         start = controller.hold_positions.copy()
-        print("Connected; start pose captured from rt/lowstate. Holding 3 s so the robot settles on the band.")
+        print("Connected; start pose captured from rt/lowstate. Easing to the home pose (3 s).")
         time.sleep(3.0)
         controller.set_targets(TARGETS)
         ok &= settle_and_report(controller, TARGETS, "Fixed targets", args.tolerance, args.settle)

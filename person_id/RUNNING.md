@@ -21,6 +21,7 @@ cd ~/CITS3200/Project/person_id
 | --- | --- |
 | Tests (no camera, no sim) | `python3 -m pytest tests -q` |
 | Camera, no robot | `python3 leader_pose.py --dry-run` |
+| Sim, robot standing (no band) | `python3 sim_standing.py` |
 | Camera into the sim | `python3 leader_pose.py` (sim running) |
 | Client proof video | `python3 leader_pose.py --record-demo demo.mp4` |
 | Record for later | `python3 leader_pose.py --dry-run --export-landmarks exports/session.json` |
@@ -49,15 +50,21 @@ FPS, GMR time per frame, and the status of each limb:
 
 ## 2. Full simulation
 
-**Terminal 1: simulator**
+**Terminal 1: simulator (robot standing on the floor)**
 ```bash
-cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
-python3 unitree_mujoco.py
+python3 sim_standing.py
 ```
-Keep the elastic band on (the default). The robot hangs from it with its
-feet off the floor; press **`8`** in the MuJoCo window 4-5 times so the feet
-just touch the floor, otherwise the hanging robot swings whenever its arms
-move. (`7` lifts it again, `9` toggles the band.)
+This runs unitree_mujoco (same scene, bridge, topics and DDS settings) with
+the G1's pelvis pinned at standing height: feet on the floor, no elastic
+band, no swinging. person_id doesn't balance the robot. Turning the band
+off in the stock sim (`9`) makes the G1 fall: we tested holding the legs
+at up to 6x the SDK gains and it still falls within seconds. Every 10 s it
+prints its speed relative to real time; it should say ~1.0x.
+Options: `--viewer-fps 10` (lighter), `--headless` (no window).
+
+The stock simulator still works (`cd ~/CITS3200/Dependencies/unitree_mujoco/simulate_python
+&& python3 unitree_mujoco.py`), with the robot hanging from the band. Press
+`8` 4-5 times so its feet touch the floor.
 
 **Terminal 2: person_id**
 ```bash
@@ -159,17 +166,25 @@ settings differ. `simulate_python/config.py` must have `DOMAIN_ID = 1` and
 one program may publish `rt/lowcmd` at a time (see INTEGRATION.md). The
 message `selected interface "lo" is not multicast-capable` is normal.
 
-**Robot falls over.** The elastic band is off: press `9` in the MuJoCo
-window, or set `ENABLE_ELASTIC_BAND = True`. person_id never balances.
+**Robot falls over / flies / swings.** Use `sim_standing.py`. In the stock
+sim the band must stay on (person_id never balances). There the robot hangs
+with its feet off the floor and swings when its arms move; press `8` until
+the feet touch.
 
-**Robot swings or spins on the band.** It is hanging with its feet off the
-floor; press `8` until the feet touch. The swinging is the free-hanging
-body reacting to arm motion, not a retargeting error.
+**"sim speed 0.3x real time" / everything lags or jerks.** The VM isn't
+getting CPU time from the host. On the team VM, gnome-shell alone uses a
+full core, and with 14 virtual CPUs small computations stall for 30-40 ms.
+In VirtualBox (VM powered off): Settings -> System -> Processor, set the
+CPU count to at most the host's *physical* core count (e.g. 4-6). Also
+enable 3D acceleration under Display, and close other programs. Checks:
+`sim_standing.py --headless` should report ~1.0x, and
+`python3 test_dds_fixed_target.py` should pass.
 
-**Arms go limp when person_id exits.** Intended. unitree_mujoco keeps
-applying the last command's torque forever, which would push the joints
+**Arms go limp when person_id exits.** Intended. The stock unitree_mujoco
+keeps applying the last command's torque forever, which pushes the joints
 onto their limits, so the last command sent releases every joint (zero
-torque).
+torque). On start, every joint eases to the G1's zero posture first
+(standing, arms down, forearms forward), so a slumped robot is fine.
 
 **A limb freezes, then drops to the side.** It left the camera view or
 MediaPipe's visibility for it fell below `--min-visibility`: the last pose is

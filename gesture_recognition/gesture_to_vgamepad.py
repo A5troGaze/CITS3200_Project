@@ -20,9 +20,12 @@ AND g1_ctrl's observations.h):
 """
 
 import subprocess
+import threading
 import time
 
 import vgamepad as vg
+
+from abstract_controller import AbstractGestureController
 
 # Gesture -> (vx, vy, wz). Same semantic units/signs as the rest of the project.
 GESTURE_CMD = {
@@ -55,10 +58,18 @@ def send_key_to_mujoco(key: str, times: int = 1, interval: float = 0.05):
         time.sleep(interval)
 
 
-class GestureGamepadBridge:
+class GestureGamepadBridge(AbstractGestureController):
     def __init__(self):
-        self.gamepad = vg.VX360Gamepad()
+        self.gamepad = None
         self.current_gesture = None
+        self._stopped = False
+        self._thread = None
+
+    def init(self):
+        # Creating the virtual gamepad talks to the OS driver (ViGEmBus /
+        # uinput), so do it here rather than in __init__, matching where
+        # the other controllers open their DDS channel.
+        self.gamepad = vg.VX360Gamepad()
 
     def _pulse(self, press_fn, release_fn, hold_seconds=1.5):
         press_fn()
@@ -112,8 +123,28 @@ class GestureGamepadBridge:
     def set_gesture(self, gesture_name):
         self.current_gesture = gesture_name
 
-    def run_forever(self, rate_hz=50):
-        while True:
+    def start(self):
+        # Blocks on the interactive stand-up/band-release sequence first
+        # (same pattern as SimController.start() blocking until ready_),
+        # then hands off to a background thread so the caller's own loop
+        # (gesture_control.py's webcam loop) is free to keep calling
+        # set_gesture() at its own pace.
+        self.startup_sequence()
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stopped = True
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+        # Neutral stick position so the robot doesn't keep walking on the
+        # last-held command after we've stopped issuing gestures.
+        self.gamepad.left_joystick_float(x_value_float=0.0, y_value_float=0.0)
+        self.gamepad.right_joystick_float(x_value_float=0.0, y_value_float=0.0)
+        self.gamepad.update()
+
+    def _run_loop(self, rate_hz=50):
+        while not self._stopped:
             vx, vy, wz = GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
             self.gamepad.left_joystick_float(x_value_float=-vy, y_value_float=-vx)
             self.gamepad.right_joystick_float(x_value_float=-wz, y_value_float=0.0)
@@ -122,6 +153,20 @@ class GestureGamepadBridge:
 
 
 if __name__ == "__main__":
+    # Standalone test path (no camera/gesture_control.py needed): runs the
+    # stand-up/band-release sequence, then lets you type gesture names by
+    # hand to sanity-check the joystick mapping before wiring in the
+    # camera pipeline.
     bridge = GestureGamepadBridge()
-    bridge.startup_sequence()
-    bridge.run_forever()
+    bridge.init()
+    bridge.start()
+    print(f"Streaming gestures. Type one of {list(GESTURE_CMD)} + Enter to test, "
+          "blank to go idle, Ctrl+C to quit.")
+    try:
+        while True:
+            typed = input("> ").strip()
+            bridge.set_gesture(typed if typed in GESTURE_CMD else None)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        bridge.stop()

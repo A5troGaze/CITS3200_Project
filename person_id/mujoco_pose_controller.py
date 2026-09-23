@@ -10,14 +10,18 @@ person_id joint targets. SIMULATOR ONLY: never run this against a real robot
   example's KP/KD (g1_gains.py) and a gravity feed-forward `tau` for the
   commanded joints (g1_sim.GravityComp), so the SDK's gains do not let the
   arms and torso sag.
+* Home pose: on connect every joint is eased (speed-limited) to the home
+  pose, by default the G1's zero posture (standing, arms down, forearms
+  forward), as unitree_sdk2_python's g1_low_level_example.py does first.
+  home="current" keeps whatever pose the robot was in (the old behaviour;
+  after a previous run released the joints that is a slumped pose).
 * Joints that are not commanded:
-    hold mode (default)     held at their first observed position with the
-                            same gains, as before. The legs are then stiff
-                            but not balanced, so keep the sim's elastic band
-                            on or the robot falls.
+    hold mode (default)     held at the home pose with the SDK gains. The
+                            legs are stiff but not balanced: use the elastic
+                            band or sim_standing.py (pelvis pinned).
     commanded_only=True     kp = kd = 0, tau = 0: left limp.
-* return_to_start() eases the commanded joints back to where they were when
-  the controller connected; stop() stops publishing.
+* return_to_start() eases the commanded joints back to the home pose;
+  stop() stops publishing.
 
 unitree_sdk2py is imported inside init(), so importing this module (for
 the constants or in tests) does not need the SDK or open DDS.
@@ -73,7 +77,11 @@ class MujocoPoseController:
     """Publish person_id joint targets to unitree_mujoco over rt/lowcmd."""
 
     def __init__(self, domain_id=1, interface="lo", control_hz=200.0, max_command_speed=5.0,
-                 smoothing_tau=0.05, commanded_only=False, gravity_comp=True, allow_legs=False):
+                 smoothing_tau=0.05, commanded_only=False, gravity_comp=True, allow_legs=False,
+                 home="zero"):
+        if home not in ("zero", "current"):
+            raise ValueError("home must be 'zero' or 'current'")
+        self.home = home
         if control_hz <= 0:
             raise ValueError("control_hz must be greater than zero")
         if max_command_speed <= 0:
@@ -134,9 +142,10 @@ class MujocoPoseController:
         if not self.ready.is_set():
             # The first simulator state is the safe start / return pose.
             self.mode_machine = msg.mode_machine
-            self.hold_positions = q.copy()
+            self.hold_positions = np.zeros(G1_NUM_MOTOR) if self.home == "zero" else q.copy()
             self.shaper = CommandShaper(q, self.control_dt, tau_s=self.smoothing_tau,
                                         max_speed=self.max_command_speed)
+            self.shaper.target = self.hold_positions.copy()
             self.ready.set()
 
     # -- targets ---------------------------------------------------------------
@@ -238,12 +247,14 @@ class MujocoPoseController:
         tau = self.gravity(measured, quat) if self.gravity is not None else np.zeros(G1_NUM_MOTOR)
         rows = []
         for i in range(G1_NUM_MOTOR):
-            if i in active:
-                rows.append((q_cmd[i], KP[i], KD[i], float(tau[i])))
-            elif self.commanded_only:
+            if self.commanded_only and i not in active:
                 rows.append((measured[i], 0.0, 0.0, 0.0))
             else:
-                rows.append((self.hold_positions[i], KP[i], KD[i], 0.0))
+                # Held joints go through the shaper too, so the move to the home
+                # pose is speed-limited. Gravity feed-forward on the upper body
+                # only: the leg rows of the gravity vector assume the pelvis is
+                # held, which is only true for the pinned-pelvis sim.
+                rows.append((q_cmd[i], KP[i], KD[i], float(tau[i]) if i >= 12 else 0.0))
         return rows
 
     def _write_once(self):

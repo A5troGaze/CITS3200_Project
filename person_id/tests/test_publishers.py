@@ -18,18 +18,19 @@ PERSON_ID = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _controller(**kwargs):
-    """A controller as it is after init() received its first LowState."""
+    """A controller as _on_low_state leaves it after the first LowState."""
     ctl = MujocoPoseController(gravity_comp=False, **kwargs)
     start = np.linspace(-0.2, 0.2, 29)
-    ctl.hold_positions = start.copy()
     ctl.latest_q = start.copy()
+    ctl.hold_positions = np.zeros(29) if ctl.home == "zero" else start.copy()
     ctl.shaper = CommandShaper(start, ctl.control_dt, engage_s=0.0)
+    ctl.shaper.target = ctl.hold_positions.copy()
     ctl.ready.set()
     return ctl, start
 
 
 def test_hold_mode_holds_uncommanded_joints_with_sdk_gains():
-    ctl, start = _controller()
+    ctl, start = _controller(home="current")
     ctl.set_targets({18: 1.0})
     rows = ctl.build_command()
     for i, (q, kp, kd, tau) in enumerate(rows):
@@ -64,7 +65,7 @@ def test_non_finite_target_rejected():
         ctl.set_targets({18: float("nan")})
 
 
-def test_gravity_feed_forward_only_on_commanded_joints():
+def test_gravity_feed_forward_on_upper_body_not_legs():
     ctl = MujocoPoseController(gravity_comp=True)
     start = np.zeros(29)
     ctl.hold_positions, ctl.latest_q = start.copy(), start.copy()
@@ -73,11 +74,20 @@ def test_gravity_feed_forward_only_on_commanded_joints():
     ctl.latest_q[15] = -1.57
     rows = ctl.build_command()
     assert abs(rows[15][3]) > 0.5    # N*m, holding the arm up
-    assert all(rows[i][3] == 0.0 for i in range(29) if i != 15)
+    assert all(rows[i][3] == 0.0 for i in range(12))   # legs: no feed-forward
+
+
+def test_home_zero_eases_every_joint_to_zero_posture():
+    ctl, start = _controller()
+    first = ctl.build_command()
+    assert all(abs(q - s) < 0.02 for (q, *_), s in zip(first, start))   # no jump
+    for _ in range(1000):
+        rows = ctl.build_command()
+    assert all(abs(q) < 1e-3 for q, *_ in rows)
 
 
 def test_return_to_start_goes_back():
-    ctl, start = _controller()
+    ctl, start = _controller(home="current")
     ctl.set_targets({18: 1.0})
     for _ in range(500):
         ctl.build_command()

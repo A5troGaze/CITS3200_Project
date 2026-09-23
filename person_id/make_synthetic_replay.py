@@ -20,10 +20,15 @@ def main():
     parser.add_argument("--hold", type=float, default=0.6, help="seconds each pose is held")
     parser.add_argument("--move", type=float, default=0.8, help="seconds to blend to the next pose")
     parser.add_argument("--noise", type=float, default=0.004, help="landmark jitter (m), like MediaPipe")
+    parser.add_argument("--poses", default=None,
+                        help="comma-separated pose names from synthetic_poses.base_poses (default: all)")
     args = parser.parse_args()
 
     rng = np.random.default_rng(0)
     poses = base_poses()
+    if args.poses:
+        by_name = {p.name: p for p in poses}
+        poses = [by_name[n] for n in args.poses.split(",")]
     poses = poses + poses[:1]
     frames, k = [], 0
     for a, b in zip(poses, poses[1:]):

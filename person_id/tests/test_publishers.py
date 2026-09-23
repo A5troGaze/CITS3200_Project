@@ -9,7 +9,7 @@ import os
 import numpy as np
 import pytest
 
-from arm_sdk_publisher import ARM_SDK_JOINTS, ArmSdkPublisher
+from arm_sdk_publisher import ARM_ONLY_JOINTS, ARM_SDK_JOINTS, ArmSdkPublisher
 from command_shaping import CommandShaper
 from g1_gains import KD, KP
 from mujoco_pose_controller import MujocoPoseController
@@ -110,14 +110,18 @@ def test_arm_sdk_weight_ramps_up_and_down_without_jumps():
     assert min(np.diff(down)) >= -pub.dt / pub.ramp_s - 1e-12
 
 
-def test_arm_sdk_covers_only_waist_and_arms():
-    assert ARM_SDK_JOINTS == list(range(12, 29))
+def test_arm_sdk_covers_only_arms_by_default():
+    assert ARM_ONLY_JOINTS == list(range(15, 29))
     pub = ArmSdkPublisher(real=False, log=lambda *a: None)
     pub.init(start_q=np.zeros(29))
-    with pytest.raises(ValueError):
-        pub.set_targets({0: 0.1})   # a leg
+    for joint in (0, 12):           # a leg, the waist: left to the balance controller
+        with pytest.raises(ValueError):
+            pub.set_targets({joint: 0.1})
     _, q = pub.build_message()
-    assert set(q) == set(ARM_SDK_JOINTS)
+    assert set(q) == set(ARM_ONLY_JOINTS)
+    with_waist = ArmSdkPublisher(real=False, log=lambda *a: None, joints=ARM_SDK_JOINTS)
+    with_waist.init(start_q=np.zeros(29))
+    assert set(with_waist.build_message()[1]) == set(range(12, 29))
 
 
 def test_arm_sdk_real_needs_an_interface():

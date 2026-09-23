@@ -68,6 +68,16 @@ def add_pipeline_args(parser):
     parser.add_argument("--max-speed", type=float, default=5.0, help="Command velocity cap, rad/s")
     parser.add_argument("--dds-domain", type=int, default=1, help="CycloneDDS domain (sim: 1)")
     parser.add_argument("--dds-interface", default="lo", help="Network interface (sim: lo)")
+    parser.add_argument("--balance", choices=("onboard", "rl_lab", "none"), default="onboard",
+                        help="How the simulated robot stays up. 'onboard' (default): the simulator runs "
+                             "unitree_rl_lab's policy itself (sim_standing.py --rl-lab) and person_id sends "
+                             "the arms on rt/arm_sdk, as on the real G1. 'rl_lab': person_id runs the policy "
+                             "in this process like the gesture team's rl_lab_walking_test.py (fragile when "
+                             "the VM is slow). 'none': person_id publishes rt/lowcmd for the arms only; use "
+                             "the pinned sim (sim_standing.py) or keep the band on.")
+    parser.add_argument("--arm-speed", type=float, default=1.0,
+                        help="--balance onboard/rl_lab: arm speed cap in rad/s. Fast arm motion knocks the "
+                             "balance policy over (see rl_lab_policy.py)")
     parser.add_argument("--real", action="store_true",
                         help="REAL ROBOT via rt/arm_sdk (untested on hardware). Needs --dds-interface "
                              "set to the robot NIC and --dds-domain 0.")
@@ -93,6 +103,24 @@ def build_publisher(args, log=print):
         pub.start()
         pub.engage()
         return pub
+    if args.balance == "onboard":
+        from arm_sdk_publisher import ArmSdkPublisher
+
+        pub = ArmSdkPublisher(interface=args.dds_interface, domain_id=args.dds_domain, real=True, log=log,
+                              control_hz=100.0, max_command_speed=args.arm_speed)
+        log("Waiting for rt/lowstate from the simulator (start it with: python3 sim_standing.py --rl-lab)...")
+        pub.init()
+        pub.start()
+        pub.engage()
+        return pub
+    if args.balance == "rl_lab":
+        from rl_arm_controller import RlArmController
+
+        ctl = RlArmController(args.dds_domain, args.dds_interface, arm_speed=args.arm_speed, log=log)
+        log("Waiting for rt/lowstate from the simulator (rl_lab balance)...")
+        ctl.init()
+        ctl.start()
+        return ctl
     from mujoco_pose_controller import MujocoPoseController
 
     ctl = MujocoPoseController(args.dds_domain, args.dds_interface, max_command_speed=args.max_speed,

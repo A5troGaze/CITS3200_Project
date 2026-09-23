@@ -11,7 +11,11 @@ see G1_ARM_CONVENTIONS.md section 5):
 * motor_cmd[29].q is the blend weight: 0 = locomotion controller owns the
   arms, 1 = arm_sdk does. It is ramped 0 -> 1 over ramp_s on engage and
   1 -> 0 on disengage; it never jumps;
-* joints covered: waist 12-14 and arms 15-28 (never legs);
+* joints: arms 15-28 by default (joints=ARM_SDK_JOINTS adds waist 12-14,
+  as Unitree's example does); never legs. Arms-only leaves the waist
+  entries at kp = 0. UNVERIFIED on hardware: whether the real arm_sdk then
+  leaves the waist to locomotion (what the simulated on-board balance in
+  sim_onboard.py does), or blends it towards zero stiffness.
 * kp 60, kd 1.5 per joint as in the example, published at 50 Hz by default
   (the example's rate). Targets go through the same CommandShaper as the sim.
 * the real robot uses DDS domain 0 on its wired interface (e.g. enp3s0).
@@ -31,12 +35,14 @@ from g1_gains import ARM_SDK_KD, ARM_SDK_KP
 from mujoco_pose_controller import validate_targets
 
 ARM_SDK_JOINTS = list(range(12, 29))
+ARM_ONLY_JOINTS = list(range(15, 29))
 WEIGHT_INDEX = 29
 
 
 class ArmSdkPublisher:
     def __init__(self, interface=None, domain_id=0, real=False, control_hz=50.0,
-                 ramp_s=2.0, max_command_speed=3.0, smoothing_tau=0.08, log=print):
+                 ramp_s=2.0, max_command_speed=3.0, smoothing_tau=0.08, log=print, joints=ARM_ONLY_JOINTS):
+        self.joints = list(joints)
         self.real = bool(real)
         if self.real and not interface:
             raise ValueError("--real needs the robot's network interface (e.g. enp3s0)")
@@ -107,7 +113,7 @@ class ArmSdkPublisher:
             self.weight_target = 1.0
 
     def set_targets(self, targets):
-        cleaned = validate_targets(targets, set(ARM_SDK_JOINTS))
+        cleaned = validate_targets(targets, set(self.joints))
         with self.lock:
             for i, v in cleaned.items():
                 self.shaper.set_target(i, v)
@@ -116,12 +122,12 @@ class ArmSdkPublisher:
         """Ease the arms back to their start pose, then ramp the weight to 0
         (locomotion takes the arms back). Blocks until done or timeout."""
         with self.lock:
-            for i in ARM_SDK_JOINTS:
+            for i in self.joints:
                 self.shaper.set_target(i, self.start_q[i])
         deadline = time.monotonic() + (timeout or (3.0 + 2 * self.ramp_s))
         while time.monotonic() < deadline:
             with self.lock:
-                back = np.all(np.abs(self.shaper.q[ARM_SDK_JOINTS] - self.start_q[ARM_SDK_JOINTS]) < 0.03)
+                back = np.all(np.abs(self.shaper.q[self.joints] - self.start_q[self.joints]) < 0.03)
             if back:
                 break
             time.sleep(0.02)
@@ -130,6 +136,11 @@ class ArmSdkPublisher:
         while time.monotonic() < deadline and self.weight > 0.0:
             time.sleep(0.02)
         return self.weight == 0.0
+
+    def measured_positions(self):
+        """Latest rt/lowstate joint positions (29,), or None."""
+        with self.lock:
+            return None if self.latest_q is None else self.latest_q.copy()
 
     def stop(self):
         self.stop_event.set()
@@ -147,7 +158,7 @@ class ArmSdkPublisher:
         with self.lock:
             w = self.step_weight()
             q = self.shaper.tick()
-        return w, {i: float(q[i]) for i in ARM_SDK_JOINTS}
+        return w, {i: float(q[i]) for i in self.joints}
 
     def _run(self):
         next_tick = time.monotonic()

@@ -129,7 +129,7 @@ def main():
             
             #== React to gesture ====================================================
             if gesture_name is not None and gesture_name != last_gesture:
-                print(f"Gesture: {gesture_name} (dist={best_overall_dist:.2f})")
+                print(f"Gesture: {gesture_name} | dist={best_overall_dist:.2f} | {frame_timestamp_ms}ms")
                 apply_gesture(model, data, gesture_name)
                 last_gesture = gesture_name
             elif gesture_name is None:

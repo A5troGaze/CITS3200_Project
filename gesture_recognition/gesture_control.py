@@ -14,6 +14,7 @@ from webcam_source import WebcamSource
 # has no official macOS wheels, so importing it here would break running
 # in "sim" mode on a machine (like a laptop) that will never touch the
 # real robot's camera.
+from gesture_to_vgamepad import GestureGamepadBridge
 
 
 
@@ -33,7 +34,13 @@ def build_controller(backend):
         return SimController()
     if backend == "real":
         return RealController()
-    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
+    if backend == "walk":
+        # Drives the official g1_ctrl RL walking policy in MuJoCo via a
+        # virtual gamepad, instead of SimController's direct DDS LowCmd_
+        # writes. Requires unitree_mujoco and g1_ctrl already running in
+        # their own terminals -- see gesture_to_vgamepad.py's docstring.
+        return GestureGamepadBridge()
+    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'real', or 'walk'.")
 
 
 def build_camera(backend):
@@ -49,8 +56,8 @@ def build_camera(backend):
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
-        print("Usage: python gesture_control.py [sim|real]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real", "walk"):
+        print("Usage: python gesture_control.py [sim|real|walk]")
         sys.exit(1)
 
 

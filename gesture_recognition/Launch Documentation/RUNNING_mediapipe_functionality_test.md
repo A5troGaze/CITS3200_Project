@@ -1,4 +1,4 @@
-# Running `test_functionality.py` — Quick Start
+# Running `mediapipe_functionality_test.py` — Quick Start
 
 ## 1. Activate the shared environment
 
@@ -29,12 +29,13 @@ You only need to do this once — the file stays on your machine after that.
 
 ```bash
 cd ~/CITS3200/Project/gesture_recognition
+cd "Functionality Tests"
 ```
 
 ## 4. Run the script
 
 ```bash
-python test_functionality.py
+python mediapipe_functionality_test.py
 ```
 
 A window should open showing your webcam feed with green lines and red dots tracking your hand.

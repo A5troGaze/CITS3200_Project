@@ -29,21 +29,24 @@ from abstract_controller import AbstractGestureController
 
 # Gesture -> (vx, vy, wz). Same semantic units/signs as the rest of the project.
 GESTURE_CMD = {
-    # Turning is now full-deflection (+/-1.0) instead of a partial tilt --
-    # tried 0.2, then 0.4, and both only gave a barely-visible "trying to
-    # turn": wz is a joystick-tilt FRACTION, and the actual ang_vel_z sent
-    # to the policy is that fraction times deploy.yaml's trained turning
-    # range (only +/-0.2 rad/s -- much smaller than lin_vel_x's range for
-    # forward/back), so partial tilts were producing tiny real angular
-    # velocities. Client suggested driving turning from a button instead
-    # of the stick; going with the safer version of that idea -- treat the
-    # stick as on/off (always full deflection when the gesture is active,
-    # zero otherwise) rather than binding a real controller button, since
-    # we haven't confirmed g1_ctrl/unitree_mujoco actually maps any
-    # physical button to a turn command, whereas the stick path is already
-    # proven working for every other gesture. Even at full deflection this
-    # is still the policy's own (slow) trained turning ceiling -- expect a
-    # gradual rotation, not a snappy pivot.
+    # Turning is now full-deflection (+/-1.0) instead of a partial tilt.
+    # Tried 0.2, then 0.4, then (independently, on Christo's end) 0.75 --
+    # all three tested and none produced a real turn: wz is a joystick-tilt
+    # FRACTION, and the actual ang_vel_z sent to the policy is that
+    # fraction times deploy.yaml's trained turning range (only +/-0.2
+    # rad/s -- much smaller than lin_vel_x's range for forward/back), so
+    # anything less than full deflection was producing too small a real
+    # angular velocity. Client suggested driving turning from a button
+    # instead of the stick; going with the safer version of that idea --
+    # treat the stick as on/off (always full deflection when the gesture
+    # is active, zero otherwise) rather than binding a real controller
+    # button, since we haven't confirmed g1_ctrl/unitree_mujoco actually
+    # maps any physical button to a turn command, whereas the stick path
+    # is already proven working for every other gesture. If even full
+    # deflection doesn't produce a visible turn, the policy itself likely
+    # isn't engaging its (slow) trained turning behaviour in this sim, and
+    # that's a separate problem from stick magnitude -- flag back to the
+    # team rather than continuing to tune this number further.
     "turn_right":                (0.0,  0.0, -1.0),
     "turn_left":                 (0.0,  0.0,  1.0),
     "move_right":                (0.0, -0.3,  0.0),

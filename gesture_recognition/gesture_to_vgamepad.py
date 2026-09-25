@@ -29,11 +29,23 @@ from abstract_controller import AbstractGestureController
 
 # Gesture -> (vx, vy, wz). Same semantic units/signs as the rest of the project.
 GESTURE_CMD = {
-    # Bumped from 0.2 -> 0.4: forward/back/strafe (0.3-0.5) all worked, but
-    # turning didn't -- 0.2 was likely sitting right in the right stick's
-    # deadzone. Tune further if this overshoots or still doesn't register.
-    "turn_right":                (0.0,  0.0, -0.4),
-    "turn_left":                 (0.0,  0.0,  0.4),
+    # Turning is now full-deflection (+/-1.0) instead of a partial tilt --
+    # tried 0.2, then 0.4, and both only gave a barely-visible "trying to
+    # turn": wz is a joystick-tilt FRACTION, and the actual ang_vel_z sent
+    # to the policy is that fraction times deploy.yaml's trained turning
+    # range (only +/-0.2 rad/s -- much smaller than lin_vel_x's range for
+    # forward/back), so partial tilts were producing tiny real angular
+    # velocities. Client suggested driving turning from a button instead
+    # of the stick; going with the safer version of that idea -- treat the
+    # stick as on/off (always full deflection when the gesture is active,
+    # zero otherwise) rather than binding a real controller button, since
+    # we haven't confirmed g1_ctrl/unitree_mujoco actually maps any
+    # physical button to a turn command, whereas the stick path is already
+    # proven working for every other gesture. Even at full deflection this
+    # is still the policy's own (slow) trained turning ceiling -- expect a
+    # gradual rotation, not a snappy pivot.
+    "turn_right":                (0.0,  0.0, -1.0),
+    "turn_left":                 (0.0,  0.0,  1.0),
     "move_right":                (0.0, -0.3,  0.0),
     "move_left":                 (0.0,  0.3,  0.0),
     "move_forward_left_hand":    (0.5,  0.0,  0.0),

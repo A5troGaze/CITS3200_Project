@@ -8,15 +8,15 @@ import os
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from gesture_core import landmarks_to_vector, classify
+from gesture_core import landmarks_to_vector, classify, draw_skeleton, HAND_CONNECTIONS
 
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "gestures.json")
 
-#== Command line args ===========================================================
-# Default: use the live camera (index 0), same as the rest of the team's scripts.
-# Pass --video <path> to test against a pre-recorded file instead (useful if your
-# machine/VM doesn't have camera access — the rest of the script behaves identically).
+'''== Command line args ===========================================================
+Default: use the live camera (index 0), same as the rest of the team's scripts.
+Pass --video <path> to test against a pre-recorded file instead (useful if your
+machine/VM doesn't have camera access — the rest of the script behaves identically).'''
 parser = argparse.ArgumentParser()
 parser.add_argument("--video", default=None, help="Path to a video file to use instead of the live camera")
 args = parser.parse_args()
@@ -44,17 +44,17 @@ landmarker = vision.HandLandmarker.create_from_options(options)  # Create the us
 cap = cv2.VideoCapture(args.video if args.video else 0)
 frame_timestamp_ms = 0
 
-#== Display is optional: some machines (e.g. headless VMs) can't open a GUI window.
-# On Linux, no DISPLAY env var means there's no X11/GUI available at all — calling
-# cv2.imshow() in that case crashes the whole process (not a catchable exception),
-# so we check for this BEFORE ever attempting to open a window, rather than after.
+'''== Display is optional: some machines (e.g. headless VMs) can't open a GUI window.
+On Linux, no DISPLAY env var means there's no X11/GUI available at all — calling
+cv2.imshow() in that case crashes the whole process (not a catchable exception),
+so we check for this BEFORE ever attempting to open a window, rather than after.'''
 display_enabled = True
 if os.name == "posix" and "DISPLAY" not in os.environ and "WAYLAND_DISPLAY" not in os.environ:
     display_enabled = False
     print("(No display detected — running in console-only mode.)")
 
-last_gesture = None  # Tracks the previous frame's result so we only print on change
-best_overall_dist = float("inf")  # Tracks the smallest distance seen in the whole run, even on frames that never beat the threshold
+last_gesture = None                 # Tracks the previous frame's result so we only print on change
+best_overall_dist = float("inf")    # Tracks the smallest distance seen in the whole run, even on frames that never beat the threshold
 
 print("Recognizing gestures from " + ("camera (index 0)" if not args.video else f"video file: {args.video}"))
 print("Press 'q' to quit (if a display window is open), or Ctrl+C in the terminal.")
@@ -71,6 +71,8 @@ while cap.isOpened():
 
     frame_timestamp_ms += 33
     result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)
+
+    draw_skeleton(frame, result)
 
     #== Classify whatever hand was found this frame =============================
     if result.hand_landmarks:

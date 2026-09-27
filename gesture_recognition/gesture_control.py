@@ -9,6 +9,7 @@ from mediapipe.tasks.python import vision
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
 from simulation_controller import SimController
 from real_controller import RealController
+from gesture_to_vgamepad import GestureGamepadBridge
 
 
 
@@ -28,12 +29,18 @@ def build_controller(backend):
         return SimController()
     if backend == "real":
         return RealController()
-    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
+    if backend == "walk":
+        # Drives the official g1_ctrl RL walking policy in MuJoCo via a
+        # virtual gamepad, instead of SimController's direct DDS LowCmd_
+        # writes. Requires unitree_mujoco and g1_ctrl already running in
+        # their own terminals -- see gesture_to_vgamepad.py's docstring.
+        return GestureGamepadBridge()
+    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'real', or 'walk'.")
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
-        print("Usage: python gesture_control.py [sim|real]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real", "walk"):
+        print("Usage: python gesture_control.py [sim|real|walk]")
         sys.exit(1)
 
 

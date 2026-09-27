@@ -9,9 +9,8 @@ from unitree_sdk2py.utils.thread import RecurrentThread
 
 from abstract_controller import AbstractGestureController
 
-G1_NUM_MOTOR = 29                                   # number of actuators/motors a g1 robot has
+G1_NUM_MOTOR = 29
 
-# Torque = Kp * (target_angle - current_angle) + Kd * (target_speed - current_speed)
 Kp = [
     60, 60, 60, 100, 40, 40,
     60, 60, 60, 100, 40, 40,
@@ -21,9 +20,9 @@ Kp = [
 ]
 Kd = [
     1, 1, 1, 2, 1, 1,
-    1, 1, 1, 2, 1, 1, 
-    1, 1, 1, 
-    1, 1, 1, 1, 1, 1, 1, 
+    1, 1, 1, 2, 1, 1,
+    1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1
 ]
 
@@ -43,45 +42,44 @@ class Mode:
 
 class SimController(AbstractGestureController):
     def __init__(self):
-        self.time_ = 0.0                            # self-timed clock
-        self.control_dt_ = 0.002                    # time between sending messages to simulation 500/s
-        self.ramp_duration_ = 3.0                   # time for 'ease into position' phase
+        self.time_ = 0.0
+        self.control_dt_ = 0.002
+        self.ramp_duration_ = 3.0
         self.mode_machine_ = 0
-        self.low_state = None                       # location of feedback data
-        self.ready_ = False                         # check for if object has received their first bit of feedback data
-        self.current_gesture = None                 # current gesture storage
-        self.crc = CRC()                            # checksum calculator
-        self.low_cmd = unitree_hg_msg_dds__LowCmd_()# actual messaging object
-        self._stopped = False                       # set by stop(); tells _write() to quit sending new commands
+        self.low_state = None
+        self.ready_ = False
+        self.current_gesture = None
+        self.crc = CRC()
+        self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+        self._stopped = False
 
     def init(self):
-        ChannelFactoryInitialize(1, "lo")           # mujoco simulation: loopback
-        self.lowcmd_publisher_ = ChannelPublisher("rt/lowcmd", LowCmd_)         # Broadcast object for LowCmd_ messages to "rt/lowcmd"
-        self.lowcmd_publisher_.Init()                                           # Open broadcast connection
-        self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)  # Listener object for LowState_ messages from "rt/lowstate"
-        self.lowstate_subscriber.Init(self._on_low_state, 10)                   # Start Listener using a callback method for when a reply shows up and a message buffer of 10 messages
+        ChannelFactoryInitialize(1, "lo")
+        self.lowcmd_publisher_ = ChannelPublisher("rt/lowcmd", LowCmd_)
+        self.lowcmd_publisher_.Init()
+        self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
+        self.lowstate_subscriber.Init(self._on_low_state, 10)
 
     def _on_low_state(self, msg: LowState_):
         self.low_state = msg
         if not self.ready_:
             self.mode_machine_ = self.low_state.mode_machine
+            # Neutral hold target = the pose it's actually in right now.
+            # Only valid if the robot is settled/band-supported when this fires,
+            # not mid-fall.
+            self.home_pose_ = [msg.motor_state[i].q for i in range(G1_NUM_MOTOR)]
             self.ready_ = True
 
     def start(self):
-        while not self.ready_:                      # waiting loop till self.ready_ = True (aka. gets a message)
+        while not self.ready_:
             time.sleep(0.1)
-        self.thread_ = RecurrentThread(interval=self.control_dt_, target=self._write, name="control")   # Configure reply
-        self.thread_.Start()                        # Start replies
+        self.thread_ = RecurrentThread(interval=self.control_dt_, target=self._write, name="control")
+        self.thread_.Start()
 
     def set_gesture(self, gesture_name):
         self.current_gesture = gesture_name
 
     def stop(self):
-        # Stop sending new motor commands so the background thread doesn't
-        # keep repeating the last gesture's pose forever after the program
-        # has otherwise shut down. We don't try to kill self.thread_ itself
-        # (RecurrentThread's stop API isn't something we've confirmed), we
-        # just make _write() a no-op from here on.
         self._stopped = True
 
     def _write(self):
@@ -97,7 +95,7 @@ class SimController(AbstractGestureController):
             for i in range(G1_NUM_MOTOR):
                 self.low_cmd.motor_cmd[i].mode = 1
                 self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = (1.0 - ratio) * self.low_state.motor_state[i].q
+                self.low_cmd.motor_cmd[i].q = (1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.home_pose_[i]
                 self.low_cmd.motor_cmd[i].dq = 0.0
                 self.low_cmd.motor_cmd[i].kp = Kp[i]
                 self.low_cmd.motor_cmd[i].kd = Kd[i]
@@ -106,7 +104,7 @@ class SimController(AbstractGestureController):
             for i in range(G1_NUM_MOTOR):
                 self.low_cmd.motor_cmd[i].mode = 1
                 self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = targets.get(i, 0.0)
+                self.low_cmd.motor_cmd[i].q = targets.get(i, self.home_pose_[i])
                 self.low_cmd.motor_cmd[i].dq = 0.0
                 self.low_cmd.motor_cmd[i].kp = Kp[i]
                 self.low_cmd.motor_cmd[i].kd = Kd[i]

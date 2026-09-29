@@ -56,17 +56,18 @@ GESTURE_CMD = {
     "move_backward_right_hand": (-0.5,  0.0,  0.0),
 }
 
-TURN_FORWARD_S = 1.0
-TURN_BACKWARD_S = 1.0
+TURN_FORWARD_S = 1.5
+TURN_BACKWARD_S = 1.5
 TURN_GESTURES = {"turn_left", "turn_right"}
 
 TURN_FORWARD_CMD = {
-    "turn_left":  (0.25, 0.0, 1.0),
-    "turn_right": (0.25, 0.0, -1.0),
+    "turn_left":  (0.3, 0.0, 0.7),
+    "turn_right": (0.3, 0.0, -0.7),
 }
+
 TURN_BACKWARD_CMD = {
-    "turn_left":  (-0.25, 0.0, 1.0),
-    "turn_right": (-0.25, 0.0, -1.0),
+    "turn_left":  (-0.3, 0.0, 0.7),
+    "turn_right": (-0.3, 0.0, -0.7),
 }
 
 STAND_SETTLE_DELAY = 2.0

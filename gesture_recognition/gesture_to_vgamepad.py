@@ -47,14 +47,26 @@ GESTURE_CMD = {
     # isn't engaging its (slow) trained turning behaviour in this sim, and
     # that's a separate problem from stick magnitude -- flag back to the
     # team rather than continuing to tune this number further.
-    "turn_right":                (0.0,  0.0, -1.0),
-    "turn_left":                 (0.0,  0.0,  1.0),
+
     "move_right":                (0.0, -0.3,  0.0),
     "move_left":                 (0.0,  0.3,  0.0),
     "move_forward_left_hand":    (0.5,  0.0,  0.0),
     "move_forward_right_hand":   (0.5,  0.0,  0.0),
     "move_backward_left_hand":  (-0.5,  0.0,  0.0),
     "move_backward_right_hand": (-0.5,  0.0,  0.0),
+}
+
+TURN_FORWARD_S = 1.0
+TURN_BACKWARD_S = 1.0
+TURN_GESTURES = {"turn_left", "turn_right"}
+
+TURN_FORWARD_CMD = {
+    "turn_left":  (0.25, 0.0, 1.0),
+    "turn_right": (0.25, 0.0, -1.0),
+}
+TURN_BACKWARD_CMD = {
+    "turn_left":  (-0.25, 0.0, 1.0),
+    "turn_right": (-0.25, 0.0, -1.0),
 }
 
 STAND_SETTLE_DELAY = 2.0
@@ -82,6 +94,9 @@ class GestureGamepadBridge(AbstractGestureController):
         self.current_gesture = None
         self._stopped = False
         self._thread = None
+
+        self._turn_phase_start = None
+        self._turn_going_forward = True
 
     def init(self):
         # Creating the virtual gamepad talks to the OS driver (ViGEmBus /
@@ -139,6 +154,11 @@ class GestureGamepadBridge(AbstractGestureController):
         print("Startup sequence done -- streaming gesture commands.")
 
     def set_gesture(self, gesture_name):
+
+        if gesture_name in TURN_GESTURES and gesture_name != self.current_gesture:
+            self._turn_phase_start = time.monotonic()
+            self._turn_going_forward = True
+
         self.current_gesture = gesture_name
 
     def start(self):
@@ -163,7 +183,19 @@ class GestureGamepadBridge(AbstractGestureController):
 
     def _run_loop(self, rate_hz=50):
         while not self._stopped:
-            vx, vy, wz = GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
+            if self.current_gesture in TURN_GESTURES:
+                now = time.monotonic()
+                phase_limit = TURN_FORWARD_S if self._turn_going_forward else TURN_BACKWARD_S
+                if now - self._turn_phase_start >= phase_limit:
+                    self._turn_going_forward = not self._turn_going_forward
+                    self._turn_phase_start = now
+
+                cmd_table = TURN_FORWARD_CMD if self._turn_going_forward else TURN_BACKWARD_CMD
+                vx, vy, wz = cmd_table[self.current_gesture]
+
+            else:
+                vx, vy, wz = GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
+
             self.gamepad.left_joystick_float(x_value_float=-vy, y_value_float=-vx)
             self.gamepad.right_joystick_float(x_value_float=-wz, y_value_float=0.0)
             self.gamepad.update()

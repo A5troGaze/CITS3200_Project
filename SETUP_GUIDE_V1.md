@@ -57,12 +57,11 @@ Here's what you'll end up with once every step below is done — use this as a m
         │   ├── abstract_controller.py      ← shared controller interface
         │   ├── gesture_control.py          ← camera loop wiring recognition to a controller
         │   ├── gesture_core.py             ← landmark normalization + classification
-        │   ├── gesture_to_vgamepad.py      ← virtual-gamepad bridge into g1_ctrl (Terminal 1, §12)
         │   ├── react_to_gestures.py        ← dispatches recognized gestures to a controller
         │   ├── real_controller.py          ← drives the physical robot
         │   ├── recognize_gestures.py       ← live recognition with debounce/threshold
         │   ├── record_gestures.py          ← records reference samples per gesture
-        │   └── simulation_controller.py    ← drives the MuJoCo sim
+        │   └── simulation_controller.py    ← virtual-gamepad controller for MuJoCo simulation
         ├── .gitignore
         └── SETUP.md
 ```
@@ -327,11 +326,11 @@ If this raises a permissions error, the `uinput` access above didn't take effect
 
 Four terminals, all with `g1-env` activated (`source ~/HumanoidControl/Dependencies/g1-env/bin/activate`), started in this order:
 
-**Terminal 1** — the gesture-to-gamepad bridge (creates the virtual controller; must start before the simulator, which checks for a joystick at startup):
+**Terminal 1** — the gesture control program (creates the virtual gamepad; must start before the simulator, which checks for a joystick at startup):
 
 ```bash
 cd ~/HumanoidControl/Project/gesture_recognition
-python gesture_to_vgamepad.py
+python gesture_control.py sim
 ```
 
 It'll pause and wait for input before actually driving anything — leave it there for now.

@@ -1,5 +1,5 @@
 """
-gesture_to_vgamepad.py
+simulation_controller.py
 
 Drives unitree_mujoco's existing joystick-reading code (pygame-based,
 already correct/tested) via a virtual Xbox360 gamepad, instead of

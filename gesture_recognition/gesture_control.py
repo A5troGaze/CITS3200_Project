@@ -8,7 +8,7 @@ from mediapipe.tasks.python import vision
 
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
 from real_controller import RealController
-from gesture_recognition.simulation_controller import SimController
+from simulation_controller import SimController
 
 
 
@@ -34,12 +34,12 @@ def build_controller(backend):
     if backend == "real":
         return RealController()
     
-    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'real', or 'walk'.")
+    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real", "walk"):
-        print("Usage: python gesture_control.py [sim|real|walk]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
+        print("Usage: python gesture_control.py [sim|real]")
         sys.exit(1)
 
 

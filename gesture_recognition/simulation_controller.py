@@ -1,113 +1,202 @@
-#== Imports ====================================================
+"""
+gesture_to_vgamepad.py
+
+Drives unitree_mujoco's existing joystick-reading code (pygame-based,
+already correct/tested) via a virtual Xbox360 gamepad, instead of
+publishing DDS messages ourselves. unitree_mujoco reads this virtual
+gamepad and does the correct WirelessController_ + wireless_remote
+byte-packing for us.
+
+Axis/button map confirmed from unitree_mujoco's unitree_sdk2py_bridge.py
+(js_type="xbox"): LX=axis0, LY=axis1, RX=axis3, RY=axis4, LT=axis2,
+RT=axis5, A=btn0, B=btn1, X=btn2, Y=btn3, LB=btn4, RB=btn5,
+SELECT=btn6, START=btn7, dpad via hat.
+
+Velocity sign derivation (traced through both unitree_mujoco's bridge
+AND g1_ctrl's observations.h):
+  lin_vel_x = -left_stick_y   -> left_stick_y  = -vx
+  lin_vel_y = -left_stick_x   -> left_stick_x  = -vy
+  ang_vel_z = -right_stick_x  -> right_stick_x = -wz
+"""
+import os
+import signal
+import subprocess
+import threading
 import time
-import numpy as np
-from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber, ChannelFactoryInitialize
-from unitree_sdk2py.idl.default import unitree_hg_msg_dds__LowCmd_
-from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
-from unitree_sdk2py.utils.crc import CRC
-from unitree_sdk2py.utils.thread import RecurrentThread
+
+import vgamepad as vg
 
 from abstract_controller import AbstractGestureController
 
-G1_NUM_MOTOR = 29
+GESTURE_CMD = {
 
-Kp = [
-    60, 60, 60, 100, 40, 40,
-    60, 60, 60, 100, 40, 40,
-    60, 40, 40,
-    40, 40, 40, 40, 40, 40, 40,
-    40, 40, 40, 40, 40, 40, 40
-]
-Kd = [
-    1, 1, 1, 2, 1, 1,
-    1, 1, 1, 2, 1, 1,
-    1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1
-]
-
-GESTURE_TARGETS = {
-    "turn_right":               {12:   -0.5},
-    "turn_left":                {12:    0.5},
-    "move_right":               {13:   -0.4},
-    "move_left":                {13:    0.4},
-    "move_forward_left_hand":   {15:    0.6},
-    "move_forward_right_hand":  {22:    0.6},
-    "move_backward_left_hand":  {15:   -0.6},
-    "move_backward_right_hand": {22:   -0.6}
+    "move_right":                (0.0, -0.3,  0.0),
+    "move_left":                 (0.0,  0.3,  0.0),
+    "move_forward_left_hand":    (0.5,  0.0,  0.0),
+    "move_forward_right_hand":   (0.5,  0.0,  0.0),
+    "move_backward_left_hand":  (-0.5,  0.0,  0.0),
+    "move_backward_right_hand": (-0.5,  0.0,  0.0),
 }
 
-class Mode:
-    PR = 0
+TURN_FORWARD_S = 1.5
+TURN_BACKWARD_S = 1.5
+TURN_GESTURES = {"turn_left", "turn_right"}
+
+TURN_FORWARD_CMD = {
+    "turn_left":  (0.3, 0.0, 0.7),
+    "turn_right": (0.3, 0.0, -0.7),
+}
+
+TURN_BACKWARD_CMD = {
+    "turn_left":  (-0.3, 0.0, 0.7),
+    "turn_right": (-0.3, 0.0, -0.7),
+}
+
+MUJOCO_WINDOW_NAME = "MuJoCo"  # -- VERIFY against your actual window title
+
+
+def send_key_to_mujoco(key: str, times: int = 1, interval: float = 0.05):
+    """Sends `key` to the MuJoCo window `times` times, with a short pause
+    between presses so each one registers as a separate GLFW_PRESS event
+    (each press of '8' only loosens the band by 0.1m -- see ElasticBand::length_
+    in unitree_mujoco's main.cc)."""
+    for _ in range(times):
+        subprocess.run(
+            ["xdotool", "search", "--name", MUJOCO_WINDOW_NAME, "key", "--window", "%1", key],
+            check=False,
+        )
+        time.sleep(interval)
+
 
 class SimController(AbstractGestureController):
     def __init__(self):
-        self.time_ = 0.0
-        self.control_dt_ = 0.002
-        self.ramp_duration_ = 3.0
-        self.mode_machine_ = 0
-        self.low_state = None
-        self.ready_ = False
+        self.gamepad = None
         self.current_gesture = None
-        self.crc = CRC()
-        self.low_cmd = unitree_hg_msg_dds__LowCmd_()
         self._stopped = False
+        self._thread = None
+
+        self._turn_phase_start = None
+        self._turn_going_forward = True
 
     def init(self):
-        ChannelFactoryInitialize(1, "lo")
-        self.lowcmd_publisher_ = ChannelPublisher("rt/lowcmd", LowCmd_)
-        self.lowcmd_publisher_.Init()
-        self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
-        self.lowstate_subscriber.Init(self._on_low_state, 10)
+        # Creating the virtual gamepad talks to the OS driver (ViGEmBus /
+        # uinput), so do it here rather than in __init__, matching where
+        # the other controllers open their DDS channel.
+        self.gamepad = vg.VX360Gamepad()
 
-    def _on_low_state(self, msg: LowState_):
-        self.low_state = msg
-        if not self.ready_:
-            self.mode_machine_ = self.low_state.mode_machine
-            # Neutral hold target = the pose it's actually in right now.
-            # Only valid if the robot is settled/band-supported when this fires,
-            # not mid-fall.
-            self.home_pose_ = [msg.motor_state[i].q for i in range(G1_NUM_MOTOR)]
-            self.ready_ = True
+    def _pulse(self, press_fn, release_fn, hold_seconds=1.5):
+        press_fn()
+        self.gamepad.update()
+        time.sleep(hold_seconds)
+        release_fn()
+        self.gamepad.update()
 
-    def start(self):
-        while not self.ready_:
-            time.sleep(0.1)
-        self.thread_ = RecurrentThread(interval=self.control_dt_, target=self._write, name="control")
-        self.thread_.Start()
+    def startup_sequence(self):
+        input("Virtual gamepad is live.\nStart unitree_mujoco, then g1_ctrl in their own terminals.\nThen press Enter here to begin...")
+
+        #== Getting into starting position ============================================
+        print("Standing up (L2 + Up)...")
+        self.gamepad.left_trigger_float(value_float=1.0)
+        self.gamepad.update()
+        time.sleep(2.0)  # let LT's smoothed value cross threshold on both ends
+        self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)
+        self.gamepad.update()
+        time.sleep(1.0)  # hold the combo briefly so g1_ctrl definitely samples it
+        self.gamepad.left_trigger_float(value_float=0.0)
+        self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP)
+        self.gamepad.update()
+        input("\nWatch the MuJoCo window.\nOnce the robot has risen into its FixStand pose and stopped moving, press Enter to ground its feet...")
+
+        #== Grounding robot ===========================================================
+        print("Grounding feet (viewer key 8)...")
+        while True:
+            send_key_to_mujoco("8", times=5)  # +0.5m of slack per batch
+            answer = input("Are the robot's feet now touching the ground?\n[Enter = not yet, loosen more] [d = done, feet are down]: ")
+            if answer.strip().lower() == "d":
+                break
+        input("Press Enter once you're ready to start the walking policy (R1 + X)...")
+
+        #== Start walking policy ======================================================
+        print("Running policy (R1 + X)...")
+        self._pulse(
+            lambda: (self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER), self.gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
+            lambda: (self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER), self.gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)),
+        )
+        input("Watch the robot closely -- it should look actively balancing (small continuous joint motion), not limp or static.\nOnce it looks stable and alive, press Enter to release the elastic band...")
+
+        #== Release elastic band ======================================================
+        print("Releasing band (viewer key 9)...")
+        send_key_to_mujoco("9")
+        print("Startup sequence done -- streaming gesture commands.")
 
     def set_gesture(self, gesture_name):
+
+        if gesture_name in TURN_GESTURES and gesture_name != self.current_gesture:
+            self._turn_phase_start = time.monotonic()
+            self._turn_going_forward = True
+
         self.current_gesture = gesture_name
+
+    def start(self):
+        # Blocks on the interactive stand-up/band-release sequence first
+        # (same pattern as SimController.start() blocking until ready_),
+        # then hands off to a background thread so the caller's own loop
+        # (gesture_control.py's webcam loop) is free to keep calling
+        # set_gesture() at its own pace.
+        self.startup_sequence()
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
 
     def stop(self):
         self._stopped = True
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+        # Neutral stick position so the robot doesn't keep walking on the
+        # last-held command after we've stopped issuing gestures.
+        self.gamepad.left_joystick_float(x_value_float=0.0, y_value_float=0.0)
+        self.gamepad.right_joystick_float(x_value_float=0.0, y_value_float=0.0)
+        self.gamepad.update()
 
-    def _write(self):
-        if self._stopped:
-            return
+    def _run_loop(self, rate_hz=50):
+        while not self._stopped:
+            if self.current_gesture in TURN_GESTURES:
+                now = time.monotonic()
+                phase_limit = TURN_FORWARD_S if self._turn_going_forward else TURN_BACKWARD_S
+                if now - self._turn_phase_start >= phase_limit:
+                    self._turn_going_forward = not self._turn_going_forward
+                    self._turn_phase_start = now
 
-        self.time_ += self.control_dt_
-        self.low_cmd.mode_pr = Mode.PR
-        self.low_cmd.mode_machine = self.mode_machine_
+                cmd_table = TURN_FORWARD_CMD if self._turn_going_forward else TURN_BACKWARD_CMD
+                vx, vy, wz = cmd_table[self.current_gesture]
 
-        if self.time_ < self.ramp_duration_:
-            ratio = np.clip(self.time_ / self.ramp_duration_, 0.0, 1.0)
-            for i in range(G1_NUM_MOTOR):
-                self.low_cmd.motor_cmd[i].mode = 1
-                self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = (1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.home_pose_[i]
-                self.low_cmd.motor_cmd[i].dq = 0.0
-                self.low_cmd.motor_cmd[i].kp = Kp[i]
-                self.low_cmd.motor_cmd[i].kd = Kd[i]
-        else:
-            targets = GESTURE_TARGETS.get(self.current_gesture, {})
-            for i in range(G1_NUM_MOTOR):
-                self.low_cmd.motor_cmd[i].mode = 1
-                self.low_cmd.motor_cmd[i].tau = 0.0
-                self.low_cmd.motor_cmd[i].q = targets.get(i, self.home_pose_[i])
-                self.low_cmd.motor_cmd[i].dq = 0.0
-                self.low_cmd.motor_cmd[i].kp = Kp[i]
-                self.low_cmd.motor_cmd[i].kd = Kd[i]
+            else:
+                vx, vy, wz = GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
 
-        self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-        self.lowcmd_publisher_.Write(self.low_cmd)
+            self.gamepad.left_joystick_float(x_value_float=-vy, y_value_float=-vx)
+            self.gamepad.right_joystick_float(x_value_float=-wz, y_value_float=0.0)
+            self.gamepad.update()
+            time.sleep(1.0 / rate_hz)
+
+
+
+    
+
+
+if __name__ == "__main__":
+    # Standalone test path (no camera/gesture_control.py needed): runs the
+    # stand-up/band-release sequence, then lets you type gesture names by
+    # hand to sanity-check the joystick mapping before wiring in the
+    # camera pipeline.
+    bridge = SimController()
+    bridge.init()
+    bridge.start()
+    print(f"Streaming gestures. Type one of {list(GESTURE_CMD)} + Enter to test, "
+          "blank to go idle, Ctrl+C to quit.")
+    try:
+        while True:
+            typed = input("> ").strip()
+            bridge.set_gesture(typed if typed in GESTURE_CMD else None)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        bridge.stop()

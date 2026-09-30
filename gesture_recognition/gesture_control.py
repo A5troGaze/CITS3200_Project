@@ -7,14 +7,13 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
-from simulation_controller import SimController
 from real_controller import RealController
-from gesture_to_vgamepad import GestureGamepadBridge
+from gesture_recognition.simulation_controller import SimController
 
 
 
 #== Define Paths =====================================================================
-HAND_MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
+HAND_MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")     # - Rename CITS3200 to actual final project name
 HAND_MODEL_DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "gestures.json")
 
 for i in [HAND_MODEL_DATA_PATH, HAND_MODEL_PATH]:                   # For each path
@@ -29,12 +28,7 @@ def build_controller(backend):
         return SimController()
     if backend == "real":
         return RealController()
-    if backend == "walk":
-        # Drives the official g1_ctrl RL walking policy in MuJoCo via a
-        # virtual gamepad, instead of SimController's direct DDS LowCmd_
-        # writes. Requires unitree_mujoco and g1_ctrl already running in
-        # their own terminals -- see gesture_to_vgamepad.py's docstring.
-        return GestureGamepadBridge()
+    
     raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'real', or 'walk'.")
 
 

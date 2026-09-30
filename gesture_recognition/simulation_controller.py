@@ -177,6 +177,28 @@ class SimController(AbstractGestureController):
             self.gamepad.update()
             time.sleep(1.0 / rate_hz)
 
+    def _g1_ctrl_pid(self):
+        try:
+            out = subprocess.check_output(["pgrep", "-x", "g1_ctrl"]).decode().strip()
+            return int(out.splitlines()[0])
+        except subprocess.CalledProcessError:
+            raise RuntimeError("g1_ctrl isn't running -- can't mute/unmute it.")
+
+    def _mute_g1_ctrl(self):
+        os.kill(self._g1_ctrl_pid(), signal.SIGSTOP)
+
+    def _unmute_g1_ctrl(self):
+        os.kill(self._g1_ctrl_pid(), signal.SIGCONT)
+
+    def on_mode_change(self, mode):
+        if mode == "mimic":
+            self._mute_g1_ctrl()
+            # TODO: start mimic
+
+        elif mode == "gesture":
+            # TODO: stop mimic
+            self._unmute_g1_ctrl()
+
 
 
     

@@ -4,7 +4,7 @@ import os
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from gesture_core import landmarks_to_vector
+from gesture_core import landmarks_to_vector, draw_skeleton, HAND_CONNECTIONS
 
 MODEL_PATH = os.path.expanduser("~/CITS3200/Dependencies/Models/hand_landmarker.task")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "gestures.json")
@@ -47,6 +47,8 @@ KEY_TO_GESTURE = {
 }
 
 
+
+
 cap = cv2.VideoCapture(0)
 frame_timestamp_ms = 0
 
@@ -64,6 +66,8 @@ while cap.isOpened():
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
     frame_timestamp_ms += 33
     result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)
+
+    draw_skeleton(frame, result)
 
     cv2.putText(frame, "Press 1-8 to record, s to save+quit",
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -92,6 +96,8 @@ while cap.isOpened():
                 vector = landmarks_to_vector(result.hand_landmarks[0])
                 registry[gesture_name].append(vector.tolist())
                 collected += 1
+
+            draw_skeleton(frame, result)
 
             cv2.putText(frame, f"Capturing {gesture_name}: {collected}/{SAMPLES_PER_RECORDING}",
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)

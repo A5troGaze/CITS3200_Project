@@ -22,6 +22,11 @@ for i in [HAND_MODEL_DATA_PATH, HAND_MODEL_PATH]:                   # For each p
             f"Couldn't find {i}. Make sure {i} is present before running again."
         )
 
+MODE_GESTURE = "gesture"
+MODE_MIMIC = "mimic"
+MODE_TOGGLE_KEY = ord("m")
+
+
 #==
 def build_controller(backend):
     if backend == "sim":
@@ -55,6 +60,7 @@ def main():
 
     stream = cv2.VideoCapture(0)
     frame_timestamp_ms = 0
+    mode = MODE_GESTURE
 
     while stream.isOpened():
         ok, frame = stream.read()
@@ -64,22 +70,42 @@ def main():
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
         frame_timestamp_ms += 33
-        result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
 
-        gesture_name = None
-        if result.hand_landmarks:
-            vector = landmarks_to_vector(result.hand_landmarks[0])
-            gesture_name, dist = classify(vector, registry)
 
-        controller.set_gesture(gesture_name)
+        if mode == MODE_GESTURE:
+            result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
+            gesture_name = None
 
-        draw_skeleton(frame, result)
-        cv2.putText(frame, f"Gesture: {gesture_name or 'no match'}", (10, 30),
+            if result.hand_landmarks:
+                vector = landmarks_to_vector(result.hand_landmarks[0])
+                gesture_name, dist = classify(vector, registry)
+
+            controller.set_gesture(gesture_name)
+
+            draw_skeleton(frame, result)
+            status_text = f"Gesture: {gesture_name or 'no match'}"
+
+        elif mode == MODE_MIMIC:
+            # TODO:
+
+
+            status_text = "Mimic mode"
+
+
+
+
+
+        cv2.putText(frame, status_text, (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.imshow("Gesture Control", frame)
+        cv2.putText(frame, f"Mode: {mode} ['m' to toggle, 'q' to quit]", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        cv2.imshow("Humanoid Control", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        if key == MODE_TOGGLE_KEY:
+            mode = MODE_MIMIC if mode == MODE_GESTURE else MODE_GESTURE
+            print(f"switched tp {mode} mode")
 
     controller.stop()
     stream.release()

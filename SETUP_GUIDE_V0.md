@@ -10,6 +10,7 @@
 - Mujoco 3.11.0
 - pinocchio 4.1.0
 - GMR 0.2.0
+- MediaPipe Hand Landmarker model (`hand_landmarker.task`)
 
 
 ## Development Setup:
@@ -19,7 +20,9 @@
 ├── Dependencies/              ← third-party code + Python environment
 │   ├── g1-env/                ← Python virtual environment
 │   ├── unitree_sdk2_python/   ← cloned from Unitree's GitHub
-│   └── GMR/                   ← cloned from YanjieZe/GMR
+│   ├── GMR/                   ← cloned from YanjieZe/GMR
+│   ├── mujoco_menagerie       ← cloned from google-deepmind/mujoco_menagerie
+│   └── Models/                ← downloaded model files (e.g. MediaPipe hand landmarker)
 └── Project/                   ← the actual Git repo (this is what you clone from GitHub)
     ├── Documentation/
     └── Project Files/
@@ -165,7 +168,13 @@ cd ~/CITS3200/Dependencies                                              # Change
 git clone https://github.com/YanjieZe/GMR.git                           # Clone from Github
 ```
 ---
-3. **Create and activate the virtual environment**
+3. **Clone Mujoco Menagerie
+```bash
+cd ~/CITS3200/Dependencies                                              # Change to the Dependency folder
+git clone https://github.com/google-deepmind/mujoco_menagerie.git       # Clone from Github
+```
+---
+4. **Create and activate the virtual environment**
 ```bash
 python3 -m venv g1-env                                                  # Create virtual environment called g1-env
 source ~/CITS3200/Dependencies/g1-env/bin/activate                      # Activate the virtual environment
@@ -173,7 +182,7 @@ source ~/CITS3200/Dependencies/g1-env/bin/activate                      # Activa
 Prompts should now show `(g1-env)` infront of it
 
 ---
-4. **Install Unitree SDK2 Python:**
+5. **Install Unitree SDK2 Python:**
 ```bash
 cd ~/CITS3200/Dependencies/unitree_sdk2_python                          # Change directory to unitree_sdk2_python's clone
 pip3 install -e .                                                       # Install
@@ -181,21 +190,34 @@ python3 -c "import unitree_sdk2py; print('Unitree SDK OK')"             # Verify
 ```
 ---
 
-5. **Install MediaPipe:**
+6. **Install MediaPipe:**
 ```bash
 pip3 install mediapipe                                                  # Install
 python3 -c "import mediapipe; print('MediaPipe OK')"                    # Verify install
 ```
 ---
 
-6. **Install Mujoco:**
+7. **Download the MediaPipe Hand Landmarker model:**
+
+MediaPipe's hand-tracking package (installed above) only provides the *code* — the pretrained model file itself is a separate binary that must be downloaded. It's large and externally sourced, so like the rest of `Dependencies/`, it's kept outside the Git repo rather than committed.
+
+```bash
+mkdir -p ~/CITS3200/Dependencies/Models                                                                                                                          # Create a folder to hold downloaded model files
+curl -o ~/CITS3200/Dependencies/Models/hand_landmarker.task -L https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task   # Download the model
+ls -la ~/CITS3200/Dependencies/Models/hand_landmarker.task                                                                                                       # Verify: should be several MB, not 0 bytes
+```
+Any code using MediaPipe's hand landmark detection loads this file via its path (`~/CITS3200/Dependencies/Models/hand_landmarker.task`) — it doesn't come from `pip3 install mediapipe` alone.
+
+---
+
+8. **Install Mujoco:**
 ```bash
 pip3 install mujoco                                                     # Install
 python3 -c "import mujoco; print('MuJoCo OK')"                          # Verify install
 ```
 ---
 
-7. **Install Pinocchio:**
+9. **Install Pinocchio:**
 ```bash
 pip3 install pin                                                        # Install
 python3 -c "import pinocchio; print('Pinocchio OK')"                    # Verify install
@@ -203,7 +225,7 @@ python3 -c "import pinocchio; print('Pinocchio OK')"                    # Verify
 Note: pip package name is `pin`, but you import it as `import pinocchio`.
 
 ---
-8. **Install GMR:**
+10. **Install GMR:**
 ```bash
 cd ~/CITS3200/Dependencies/GMR                                          # Change to GMR directory inside Dependency directory
 pip3 install -e .                                                       # Install, NOTE: Takes longer than others
@@ -214,7 +236,7 @@ You may see a line saying `xrobotoolkit_sdk not found, skip for now` — that's 
 ---
 
 ### Step 6: Verify All Installs
-With `g1-env` active, run:
+1. With `g1-env` active, run:
 ```bash
 python3 -c "
 import unitree_sdk2py
@@ -224,13 +246,32 @@ import pinocchio
 import general_motion_retargeting
 print('All 5 dependencies OK')"
 ```
-If this prints `All 5 dependencies OK` with no errors, the environment is full set up.
+If this prints `All 5 dependencies OK` with no errors, the Python packages are fully set up.
+
+2. Confirm the hand landmark model file is present (this isn't a Python import, so it isn't covered by the check above):
+```bash
+ls -la ~/CITS3200/Dependencies/Models/hand_landmarker.task
+```
+
+3. Confirm the mujoco menagerie model and scene file exists (also not covered by check above)
+```bash
+ls -la ~/CITS3200/Dependencies/mujoco_menagerie/unitree_g1/g1_with_hands.xml        # Check model file
+ls -la ~/CITS3200/Dependencies/mujoco_menagerie/unitree_g1/scene_with_hands.xml     # Check scene file
+```
+
+If both checks pass, the environment is fully set up.
 
 ## Workflow and Warnings:
-- **Every new terminal session**, before running any project Python code:
+### 1. **Every new terminal session**, before running any project Python code:
 ```bash
-  source ~/CITS3200/Dependencies/g1-env/bin/activate
+source ~/CITS3200/Dependencies/g1-env/bin/activate
 ```
-- **Never commit anything from `~/CITS3200/Dependencies/`** to Git — it's intentionally outside the `Project` repo folder, so this shouldn't happen by accident, but don't manually copy those files into `Project` either.
+### 2.**Never commit anything from `~/CITS3200/Dependencies/`** to Git
+- It is intentionally outside the `Project` repo folder, so this shouldn't happen by accident, but don't manually copy those files into `Project` either. This includes `Dependencies/Models/` — model files are downloaded once per machine, not tracked in Git.
 - The repo's `.gitignore` already excludes Python cache files, editor settings, OS junk files, and common data/output file types (`.pkl`, `.mp4`, etc.).
-- Development work happens on feature branches (e.g. `Gesture-Recog`), not directly on `main`
+### 3. Development work happens on feature branches (e.g. `Gesture-Recog`), not directly on `main`
+To switch and create a new branch:
+```bash
+git checkout branch-to-branch-from        # Switch to the branch you wish to branch off from
+git checkout -b new-branch-name           # Create new branch and switch to it
+```

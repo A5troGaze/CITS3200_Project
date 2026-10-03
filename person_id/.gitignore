@@ -1,0 +1,13 @@
+# Model files — never commit these, see SETUP.md
+*.task
+
+# Per-frame landmark export output (test fixtures under tests/ are not exports)
+exports/
+exports/*.json
+
+# Annotated --output video, never committed
+*.mp4
+
+# Python cache
+__pycache__/
+*.pyc

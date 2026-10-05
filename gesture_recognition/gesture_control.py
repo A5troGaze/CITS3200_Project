@@ -7,6 +7,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
+from brain import PlaceholderMimicBrain
 from real_controller import RealController
 from simulation_controller import SimController
 
@@ -61,6 +62,7 @@ def main():
     stream = cv2.VideoCapture(0)
     frame_timestamp_ms = 0
     mode = MODE_GESTURE
+    mimic_brain = PlaceholderMimicBrain()   # TODO: replace with person_id's PersonIdBrain
 
     while stream.isOpened():
         ok, frame = stream.read()
@@ -86,8 +88,8 @@ def main():
             status_text = f"Gesture: {gesture_name or 'no match'}"
 
         elif mode == MODE_MIMIC:
-            # TODO:
-
+            # TODO: send output.joint_targets to the robot once PersonIdBrain exists
+            output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
 
             status_text = "Mimic mode"
 
@@ -105,7 +107,11 @@ def main():
             break
         if key == MODE_TOGGLE_KEY:
             mode = MODE_MIMIC if mode == MODE_GESTURE else MODE_GESTURE
-            print(f"switched tp {mode} mode")
+            print(f"switched to {mode} mode")
+            if mode == MODE_MIMIC:
+                controller.set_gesture(None)   # stop walking before handing over
+            mimic_brain.reset()
+            controller.on_mode_change(mode)
 
     controller.stop()
     stream.release()

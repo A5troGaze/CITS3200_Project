@@ -16,3 +16,7 @@ class AbstractGestureController:
     @abstractmethod
     def stop(self):
         ''''''
+
+    def on_mode_change(self, mode):
+        '''Called when gesture_control.py switches between "gesture" and
+        "mimic" mode. Default: do nothing (e.g. RealController).'''

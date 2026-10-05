@@ -32,22 +32,16 @@ See RUNNING.md for the full set of commands and troubleshooting.
 
 import argparse
 import json
-import math
 import time
 
-from person_id_replay import add_pipeline_args, build_pipeline, build_publisher, run_replay, shutdown_publisher
+from person_id_brain import PersonIdBrain
+from person_id_replay import add_pipeline_args, build_publisher, run_replay, shutdown_publisher
 from pose_common import (
     FpsCounter,
-    LeaderTracker,
-    bbox_centroid,
-    build_landmarker,
     draw_skeleton,
-    landmarks_to_bbox,
     make_timestamp,
     open_capture,
     open_video_writer,
-    resolve_model_path,
-    torso_histogram,
 )
 
 WINDOW_NAME = "Leader Pose - click a person to select leader, 'q' to quit"
@@ -110,12 +104,10 @@ def _draw_status(cv2, frame, result, mirror, fps):
 
 def run_live(args):
     import cv2
-    import mediapipe as mp
 
     if args.no_preview and args.num_people != 1:
         raise SystemExit("--no-preview needs --num-people 1: selecting a leader needs a click in the window")
 
-    model_path = resolve_model_path(args.model)
     cap, frame_w, frame_h, fps, is_live_camera = open_capture(args.input, args.width, args.height)
     # Some cameras (the VirtualBox webcam passthrough) ignore the requested
     # size and send 1280x720. Downscale to the requested width so detection,
@@ -124,33 +116,38 @@ def run_live(args):
     if scale < 1.0:
         frame_w, frame_h = int(round(frame_w * scale)), int(round(frame_h * scale))
         print(f"Downscaling camera frames to {frame_w}x{frame_h}.")
-    frame_diag = math.hypot(frame_w, frame_h)
     writer = open_video_writer(args.output, fps, frame_w, frame_h)
-    landmarker = build_landmarker(model_path, args.num_people, args.min_detection_confidence,
-                                  args.min_presence_confidence, args.min_tracking_confidence)
-    pipeline = build_pipeline(args)
+    brain = PersonIdBrain(
+        model_path=args.model,
+        num_people=args.num_people,
+        min_detection_confidence=args.min_detection_confidence,
+        min_presence_confidence=args.min_presence_confidence,
+        min_tracking_confidence=args.min_tracking_confidence,
+        max_match_frac=args.max_match_frac,
+        leader_lost_frames=args.leader_lost_frames,
+        mirror=args.mirror,
+        waist=args.waist,
+        legs=args.legs,
+        min_visibility=args.min_visibility,
+    )
     recorder = None
     if args.record_demo:
         from demo_recorder import DemoRecorder
 
         recorder = DemoRecorder(args.record_demo, fps=fps)
 
-    click = {"xy": None}
-
     def on_mouse(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            click["xy"] = (x, y)
+            brain.select_at(x, y)
 
     if not args.no_preview:
         cv2.namedWindow(WINDOW_NAME)
         cv2.setMouseCallback(WINDOW_NAME, on_mouse)
 
-    tracker = LeaderTracker(leader_lost_frames=args.leader_lost_frames, max_match_frac=args.max_match_frac)
     fps_counter = FpsCounter()
     exported = []
     frame_index = 0
     failed_reads = 0
-    engaged = False
     start_time = time.time()
     pub = None
     stop_reason = "end of input"
@@ -176,44 +173,19 @@ def run_live(args):
             if scale < 1.0:
                 frame = cv2.resize(frame, (frame_w, frame_h), interpolation=cv2.INTER_AREA)
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             timestamp_ms = make_timestamp(is_live_camera, start_time, frame_index, fps)
-            result = landmarker.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), timestamp_ms)
+            targets = brain.step(frame, timestamp_ms / 1000.0)
+            detections = brain.last_detections
+            leader = brain.last_leader
+            landmarks_world_m = brain.last_landmarks_world_m
+            mimic = brain.last_mimic
 
-            detections = []
-            worlds = result.pose_world_landmarks
-            for i, landmarks in enumerate(result.pose_landmarks):
-                bbox = landmarks_to_bbox(landmarks, frame_w, frame_h)
-                detections.append({
-                    "landmarks": landmarks,
-                    "world_landmarks": worlds[i] if i < len(worlds) else None,
-                    "bbox": bbox,
-                    "centroid": bbox_centroid(bbox),
-                    "hist": torso_histogram(frame, landmarks, frame_w, frame_h) if args.num_people > 1 else None,
-                })
+            if landmarks_world_m is not None and args.export_landmarks:
+                exported.append({"frame_id": frame_index, "timestamp_ms": timestamp_ms, "leader_id": 0,
+                                 "bbox": list(leader["bbox"]), "landmarks_world_m": landmarks_world_m})
 
-            if args.num_people == 1:
-                if not tracker.locked and detections:
-                    tracker.handle_click(*detections[0]["centroid"], detections)
-            elif click["xy"] is not None:
-                tracker.handle_click(*click["xy"], detections)
-                click["xy"] = None
-            leader = tracker.update(detections, frame_diag=frame_diag)
-
-            world = leader["world_landmarks"] if leader is not None else None
-            landmarks_world_m = None
-            if world is not None:
-                landmarks_world_m = [{"x": lm.x, "y": lm.y, "z": lm.z, "visibility": lm.visibility} for lm in world]
-                if args.export_landmarks:
-                    exported.append({"frame_id": frame_index, "timestamp_ms": timestamp_ms, "leader_id": 0,
-                                     "bbox": list(leader["bbox"]), "landmarks_world_m": landmarks_world_m})
-
-            # Once a leader has been selected the pipeline runs every frame:
-            # with no leader it holds the last pose, then eases to neutral.
-            engaged = engaged or tracker.locked
-            mimic = pipeline.step(landmarks_world_m, timestamp_ms / 1000.0) if engaged else None
-            if mimic is not None and pub is not None:
-                pub.set_targets(mimic.targets)
+            if targets and pub is not None:
+                pub.set_targets(targets)
             if args.dry_run and mimic is not None and frame_index % 15 == 0:
                 print(f"frame {frame_index}: gmr {mimic.timings_ms['gmr']:.1f} ms "
                       + " ".join(f"{i}:{q:+.2f}" for i, q in sorted(mimic.targets.items())))
@@ -227,10 +199,10 @@ def run_live(args):
                     draw_skeleton(frame, d["landmarks"], frame_w, frame_h)
                 else:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (90, 90, 90), 1)
-            if tracker.locked and leader is None:
+            if brain.locked and leader is None:
                 cv2.putText(frame, "Leader lost - holding", (10, frame_h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                             (0, 0, 255), 2)
-            elif not tracker.locked and args.num_people > 1:
+            elif not brain.locked and args.num_people > 1:
                 cv2.putText(frame, "Click a person to select the leader", (10, frame_h - 15),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
             _draw_status(cv2, frame, mimic, args.mirror, fps_counter.tick())
@@ -257,7 +229,7 @@ def run_live(args):
             writer.release()
         if not args.no_preview:
             cv2.destroyAllWindows()
-        landmarker.close()
+        brain.close()
         if args.export_landmarks:
             with open(args.export_landmarks, "w") as f:
                 json.dump(exported, f)

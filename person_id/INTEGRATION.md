@@ -148,3 +148,44 @@ What each side would need to change (for the team to decide, not done here):
    mimicking.
 2. Is the real G1 a waist-locked unit? If so, run person_id with `--waist yaw`.
 3. Walk and mimic at the same time on hardware, or strictly one mode at a time?
+
+## Update 2026-10-05: PersonIdBrain extracted for the shared main loop
+
+`person_id/person_id_brain.py` now exposes the Person ID side as a camera/window/DDS-free
+brain:
+
+```python
+from person_id_brain import PersonIdBrain
+
+brain = PersonIdBrain(num_people=1)  # only detected person auto-selected
+arm_targets = brain.step(frame_bgr, t_seconds)
+brain.reset()                         # call when entering/leaving mimic mode
+```
+
+`step()` owns the old per-frame sequence from `leader_pose.py`:
+PoseLandmarker -> leader tracking -> `MimicPipeline.step()`. It returns only
+`{motor_index: angle_rad}` targets. It does **not** open a camera, create a
+window, call `waitKey`, or publish DDS, so `gesture_control.py` can remain the
+single owner of the camera and main loop. `leader_pose.py` now uses the same
+`PersonIdBrain`, so the standalone Person ID path and the integrated path do
+not maintain duplicate retargeting/tracking logic.
+
+Leader selection for the mode switch is intentionally simple: the brain defaults
+to `num_people=1` and auto-selects the only detected person. Multi-person owners
+can still call `brain.select_at(x, y)` if they provide their own UI.
+
+### Check: `rt/arm_sdk` with stock `unitree_mujoco` + `g1_ctrl`
+
+This combination does **not** work directly in the stock simulator. The stock
+`unitree_mujoco` bridge subscribes to `rt/lowcmd`; it does not implement the
+real G1 firmware's `rt/arm_sdk` blending service. `g1_ctrl` publishes the whole
+body on `rt/lowcmd`, so a separate `ArmSdkPublisher` on `rt/arm_sdk` has no
+consumer and cannot override the simulated arms.
+
+That is why `sim_standing.py --rl-lab` has an explicit `rt/arm_sdk` subscriber
+plus `OnboardBalance`: it emulates the firmware-side blend that exists on the
+physical G1. For the gesture team's **plain C++ unitree_mujoco + g1_ctrl** path,
+the shared owner/controller still needs to combine the PersonIdBrain arm targets
+with the walking controller's command path (or add an arm_sdk blender to the
+simulator). Simply starting `ArmSdkPublisher` beside stock `g1_ctrl` is not a
+working integration.

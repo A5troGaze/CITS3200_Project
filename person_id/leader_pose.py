@@ -129,6 +129,7 @@ def run_live(args):
         waist=args.waist,
         legs=args.legs,
         min_visibility=args.min_visibility,
+        input_flipped=False,
     )
     recorder = None
     if args.record_demo:
@@ -174,7 +175,8 @@ def run_live(args):
                 frame = cv2.resize(frame, (frame_w, frame_h), interpolation=cv2.INTER_AREA)
 
             timestamp_ms = make_timestamp(is_live_camera, start_time, frame_index, fps)
-            targets = brain.step(frame, timestamp_ms / 1000.0)
+            output = brain.step(frame, timestamp_ms / 1000.0)
+            targets = output.joint_targets
             detections = brain.last_detections
             leader = brain.last_leader
             landmarks_world_m = brain.last_landmarks_world_m

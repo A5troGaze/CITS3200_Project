@@ -16,7 +16,10 @@ import time
 
 import numpy as np
 
-from g1_joint_limits import G1_29DOF_JOINT_LIMITS
+try:
+    from .g1_joint_limits import G1_29DOF_JOINT_LIMITS
+except ImportError:  # standalone scripts with person_id/ on sys.path
+    from g1_joint_limits import G1_29DOF_JOINT_LIMITS
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "mediapipe_to_g1.json")
 SRC_HUMAN = "mediapipe"

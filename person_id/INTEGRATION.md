@@ -148,3 +148,67 @@ What each side would need to change (for the team to decide, not done here):
    mimicking.
 2. Is the real G1 a waist-locked unit? If so, run person_id with `--waist yaw`.
 3. Walk and mimic at the same time on hardware, or strictly one mode at a time?
+
+## Update 2026-10-06: exact Integration-branch Brain contract
+
+The gesture team's `Integration` branch now defines the shared interface in
+`gesture_recognition/brain.py`:
+
+```python
+@dataclass
+class BrainOutput:
+    joint_targets: dict
+    base_velocity: tuple[float, float, float] | None = None
+
+class Brain:
+    def step(self, frame_bgr, t) -> BrainOutput: ...
+    def reset(self) -> None: ...
+```
+
+`person_id/person_id_brain.py` follows that contract. It is camera/window/DDS-free
+and returns `BrainOutput(joint_targets={motor_index: angle_rad},
+base_velocity=None)`. With `num_people=1` it auto-selects the only detected
+person, so mimic mode needs no click UI.
+
+The Integration branch flips the shared camera frame before either brain sees it:
+
+```python
+frame = cv2.flip(frame, 1)
+```
+
+Person ID was developed against the raw camera orientation, so instantiate it for
+that loop with `input_flipped=True`; it un-flips internally before pose detection.
+The `t` supplied by Integration (`frame_timestamp_ms / 1000.0`) is already in
+seconds and advances by about 0.033 s per frame, which is valid for both the
+MediaPipe VIDEO timestamp and the Person ID filters.
+
+Expected Integration-side construction is:
+
+```python
+from person_id.person_id_brain import PersonIdBrain
+
+mimic_brain = PersonIdBrain(num_people=1, input_flipped=True)
+...
+output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
+# output.joint_targets is routed by the controller/mode manager.
+```
+
+The brain deliberately does **not** own `ArmSdkPublisher`. The shared owner should
+route `output.joint_targets`, keeping Person ID free of robot I/O.
+
+### Current simulator limitation confirmed against the Integration branch
+
+The Integration branch currently pauses `g1_ctrl` with `SIGSTOP` on entry to
+mimic mode and resumes it with `SIGCONT` on return to gesture mode. It does not
+yet route `BrainOutput.joint_targets`; `gesture_control.py` still has a TODO at
+that point.
+
+Stock `unitree_mujoco + g1_ctrl` does not consume the physical G1 firmware's
+`rt/arm_sdk` channel. The stock sim is driven through the low-level whole-body
+command path, so simply starting `ArmSdkPublisher` while using plain g1_ctrl will
+not move the simulated arms. Pausing g1_ctrl also pauses the process providing
+whole-body balance commands. Therefore the first integrated mimic demo should be
+pinned/band-supported unless the simulator gains an in-process arm/blending
+path that keeps a balance controller running. `sim_standing.py --rl-lab` works
+differently because it explicitly emulates the arm-sdk blend while the RL policy
+continues balancing.

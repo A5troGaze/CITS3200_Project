@@ -18,7 +18,10 @@ import math
 
 import numpy as np
 
-from mediapipe_to_gmr import SEGMENT_LANDMARKS, Segments, neutral_segments
+try:
+    from .mediapipe_to_gmr import SEGMENT_LANDMARKS, Segments, neutral_segments
+except ImportError:  # standalone scripts with person_id/ on sys.path
+    from mediapipe_to_gmr import SEGMENT_LANDMARKS, Segments, neutral_segments
 
 
 def _alpha(dt, cutoff):

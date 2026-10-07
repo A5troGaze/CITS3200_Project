@@ -38,6 +38,28 @@ def build_controller(backend):
     raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
 
 
+def build_mimic_brain():
+    """Create person_id's PersonIdBrain, or a do-nothing placeholder if it
+    can't be started (e.g. pose_landmarker.task missing), so that gesture
+    mode keeps working either way.
+
+    Built on first use rather than at startup: loading the pose model costs
+    time, and plain gesture mode shouldn't need person_id's dependencies.
+
+    input_flipped=True because the frame we pass in has already been through
+    cv2.flip(frame, 1); PersonIdBrain un-flips it before pose detection.
+    """
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if repo_root not in sys.path:
+        sys.path.append(repo_root)      # so `person_id` is importable as a package
+    try:
+        from person_id.person_id_brain import PersonIdBrain
+        return PersonIdBrain(num_people=1, input_flipped=True)
+    except Exception as e:
+        print(f"Couldn't start PersonIdBrain: {e}\nMimic mode will do nothing.")
+        return PlaceholderMimicBrain()
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
         print("Usage: python gesture_control.py [sim|real]")
@@ -62,7 +84,7 @@ def main():
     stream = cv2.VideoCapture(0)
     frame_timestamp_ms = 0
     mode = MODE_GESTURE
-    mimic_brain = PlaceholderMimicBrain()   # TODO: replace with person_id's PersonIdBrain
+    mimic_brain = None                      # built on the first switch to mimic mode
 
     while stream.isOpened():
         ok, frame = stream.read()
@@ -88,10 +110,12 @@ def main():
             status_text = f"Gesture: {gesture_name or 'no match'}"
 
         elif mode == MODE_MIMIC:
-            # TODO: send output.joint_targets to the robot once PersonIdBrain exists
+            # TODO: send output.joint_targets to the robot. Not connected yet:
+            # stock unitree_mujoco + g1_ctrl doesn't consume rt/arm_sdk (see
+            # person_id/INTEGRATION.md), so how to route this is still undecided.
             output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
 
-            status_text = "Mimic mode"
+            status_text = f"Mimic mode ({len(output.joint_targets)} joint targets)"
 
 
 
@@ -110,9 +134,14 @@ def main():
             print(f"switched to {mode} mode")
             if mode == MODE_MIMIC:
                 controller.set_gesture(None)   # stop walking before handing over
-            mimic_brain.reset()
+                if mimic_brain is None:
+                    mimic_brain = build_mimic_brain()
+                mimic_brain.reset()
             controller.on_mode_change(mode)
 
+    close = getattr(mimic_brain, "close", None)
+    if close is not None:
+        close()
     controller.stop()
     stream.release()
     cv2.destroyAllWindows()

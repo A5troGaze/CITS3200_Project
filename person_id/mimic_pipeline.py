@@ -19,17 +19,30 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from filters import OneEuroFilter, SegmentGate
-from g1_joint_limits import G1_29DOF_JOINT_LIMITS
-from gmr_retarget import GmrRetargeter, commanded_joint_names
-from mediapipe_to_gmr import (
-    SEGMENT_LANDMARKS,
-    TargetBuilder,
-    landmarks_to_array,
-    measure_segments,
-    mirror_landmarks,
-    segment_validity,
-)
+try:
+    from .filters import OneEuroFilter, SegmentGate
+    from .g1_joint_limits import G1_29DOF_JOINT_LIMITS
+    from .gmr_retarget import GmrRetargeter, commanded_joint_names
+    from .mediapipe_to_gmr import (
+        SEGMENT_LANDMARKS,
+        TargetBuilder,
+        landmarks_to_array,
+        measure_segments,
+        mirror_landmarks,
+        segment_validity,
+    )
+except ImportError:  # standalone scripts with person_id/ on sys.path
+    from filters import OneEuroFilter, SegmentGate
+    from g1_joint_limits import G1_29DOF_JOINT_LIMITS
+    from gmr_retarget import GmrRetargeter, commanded_joint_names
+    from mediapipe_to_gmr import (
+        SEGMENT_LANDMARKS,
+        TargetBuilder,
+        landmarks_to_array,
+        measure_segments,
+        mirror_landmarks,
+        segment_validity,
+    )
 
 
 @dataclass

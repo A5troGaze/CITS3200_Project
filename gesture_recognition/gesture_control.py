@@ -10,6 +10,7 @@ from gesture_core import landmarks_to_vector, classify, draw_skeleton
 from brain import PlaceholderMimicBrain
 from real_controller import RealController
 from simulation_controller import SimController
+from onboard_sim_controller import OnboardSimController
 
 
 
@@ -32,10 +33,12 @@ MODE_TOGGLE_KEY = ord("m")
 def build_controller(backend):
     if backend == "sim":
         return SimController()
+    if backend == "onboard":
+        return OnboardSimController()   # person_id's sim_standing.py --rl-lab: walking + arm mimicry
     if backend == "real":
         return RealController()
-    
-    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim' or 'real'.")
+
+    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'onboard' or 'real'.")
 
 
 def build_mimic_brain():
@@ -61,8 +64,9 @@ def build_mimic_brain():
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
-        print("Usage: python gesture_control.py [sim|real]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "onboard", "real"):
+        print("Usage: python gesture_control.py [sim|onboard|real]\n"
+              "  onboard: person_id's simulator (sim_standing.py --rl-lab); the only backend where 'm' mimic mode moves the arms")
         sys.exit(1)
 
 
@@ -110,10 +114,10 @@ def main():
             status_text = f"Gesture: {gesture_name or 'no match'}"
 
         elif mode == MODE_MIMIC:
-            # TODO: send output.joint_targets to the robot. Not connected yet:
-            # stock unitree_mujoco + g1_ctrl doesn't consume rt/arm_sdk (see
-            # person_id/INTEGRATION.md), so how to route this is still undecided.
+            # Arm angles go to the controller. Only the "onboard" backend moves
+            # the arms with them; "sim" (g1_ctrl) and "real" ignore them for now.
             output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
+            controller.set_joint_targets(output.joint_targets)
 
             status_text = f"Mimic mode ({len(output.joint_targets)} joint targets)"
 

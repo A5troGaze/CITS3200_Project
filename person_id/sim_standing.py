@@ -176,9 +176,13 @@ def main():
 
             from sim_onboard import OnboardBalance
 
+            import velocity_cmd
+
             onboard = OnboardBalance(model, data)
             arm_sub = ChannelSubscriber("rt/arm_sdk", LowCmd_)
             arm_sub.Init(onboard.on_arm_sdk, 10)
+            vel_sub = ChannelSubscriber(velocity_cmd.TOPIC, velocity_cmd.message_type())
+            vel_sub.Init(onboard.velocity.on_message, 10)
 
         def apply_pd():
             if onboard is not None:
@@ -195,7 +199,8 @@ def main():
 
         sim_t0 = data.time
         fell = False
-        what = ("balanced by the rl_lab policy (on-board), arms on rt/arm_sdk; band fades out at "
+        what = ("balanced by the rl_lab policy (on-board), arms on rt/arm_sdk, walking on rt/cmd_vel; "
+                "band fades out at "
                 f"{args.release_band_after:.0f} s" if onboard is not None else
                 "on the elastic band (9 releases it)" if band is not None else "standing (pelvis pinned, no band)")
         print(f"G1 {what}; DDS domain {args.domain_id}, interface {args.interface}.", flush=True)

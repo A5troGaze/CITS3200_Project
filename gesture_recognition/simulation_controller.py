@@ -157,20 +157,24 @@ class SimController(AbstractGestureController):
         self.gamepad.right_joystick_float(x_value_float=0.0, y_value_float=0.0)
         self.gamepad.update()
 
+    def _current_velocity(self):
+        """(vx, vy, wz) for the current gesture. Also used by
+        OnboardSimController (onboard_sim_controller.py)."""
+        if self.current_gesture in TURN_GESTURES:
+            now = time.monotonic()
+            phase_limit = TURN_FORWARD_S if self._turn_going_forward else TURN_BACKWARD_S
+            if now - self._turn_phase_start >= phase_limit:
+                self._turn_going_forward = not self._turn_going_forward
+                self._turn_phase_start = now
+
+            cmd_table = TURN_FORWARD_CMD if self._turn_going_forward else TURN_BACKWARD_CMD
+            return cmd_table[self.current_gesture]
+
+        return GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
+
     def _run_loop(self, rate_hz=50):
         while not self._stopped:
-            if self.current_gesture in TURN_GESTURES:
-                now = time.monotonic()
-                phase_limit = TURN_FORWARD_S if self._turn_going_forward else TURN_BACKWARD_S
-                if now - self._turn_phase_start >= phase_limit:
-                    self._turn_going_forward = not self._turn_going_forward
-                    self._turn_phase_start = now
-
-                cmd_table = TURN_FORWARD_CMD if self._turn_going_forward else TURN_BACKWARD_CMD
-                vx, vy, wz = cmd_table[self.current_gesture]
-
-            else:
-                vx, vy, wz = GESTURE_CMD.get(self.current_gesture, (0.0, 0.0, 0.0))
+            vx, vy, wz = self._current_velocity()
 
             self.gamepad.left_joystick_float(x_value_float=-vy, y_value_float=-vx)
             self.gamepad.right_joystick_float(x_value_float=-wz, y_value_float=0.0)

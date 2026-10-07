@@ -212,3 +212,35 @@ pinned/band-supported unless the simulator gains an in-process arm/blending
 path that keeps a balance controller running. `sim_standing.py --rl-lab` works
 differently because it explicitly emulates the arm-sdk blend while the RL policy
 continues balancing.
+
+## Update 2026-10-07: mimic mode works on the `onboard` backend
+
+`gesture_control.py onboard` runs both modes on person_id's simulator
+(`sim_standing.py --rl-lab`), so 'm' now makes the simulated G1 copy the
+person's arms from the live camera while the walking policy keeps balancing.
+
+```bash
+# terminal 1 (person_id/)
+python3 sim_standing.py --rl-lab
+# terminal 2 (gesture_recognition/), once terminal 1 prints "Band released"
+python3 gesture_control.py onboard
+```
+
+- **Gesture mode:** the gesture's `(vx, vy, wz)` (the same `GESTURE_CMD` table
+  and turn logic as `SimController`) is published on the new `rt/cmd_vel` topic
+  (`person_id/velocity_cmd.py`). `sim_onboard.py` feeds it to the policy as its
+  velocity command instead of the fixed `(0, 0, 0)`. If `rt/cmd_vel` goes
+  quiet for 0.5 s the robot stops.
+- **Mimic mode:** the walking command is held at zero and
+  `PersonIdBrain`'s `joint_targets` (arms only, motors 15-28) go out through
+  `ArmSdkPublisher` on `rt/arm_sdk`. The arm weight ramps 0 -> 1 on entry. On
+  the way back to gesture mode the arms ease back to where they started, then
+  the weight ramps to 0. This takes a few seconds, and the camera window
+  pauses while it happens.
+- **Nothing is paused:** no `g1_ctrl`, `unitree_mujoco` or virtual gamepad is
+  used by this backend, so there is no SIGSTOP and no DDS domain mismatch
+  (everything is on domain 1, interface `lo`).
+
+The `sim` backend (stock `unitree_mujoco` + `g1_ctrl`) is unchanged and still
+cannot mimic, for the reasons above. `real` ignores the arm targets: driving
+the real G1's arms through `rt/arm_sdk` is still untested on hardware.

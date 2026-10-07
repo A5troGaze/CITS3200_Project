@@ -22,11 +22,16 @@ w in [0, 1]; for each arm joint the target, kp and kd are blended
 are blended only if the message sets kp > 0 for them (person_id doesn't).
 While w > 0 the policy is shown its arms at its default pose
 (rl_lab_policy arm_obs="default").
+
+The velocity command is (0, 0, 0) unless something publishes on rt/cmd_vel
+(velocity_cmd.py; gesture_control.py's "onboard" backend does in gesture
+mode), in which case the robot walks.
 """
 
 import numpy as np
 
 from rl_lab_policy import ARM_MOTORS, DAMPING, DEFAULT_POSE_MOTOR, STEP_DT, STIFFNESS, RlLabPolicy
+from velocity_cmd import VelocityCommand
 
 RAMP_S = 3.0
 SETTLE_S = 2.0
@@ -47,6 +52,7 @@ class OnboardBalance:
         self.steps = 0
         self.policy_targets = DEFAULT_POSE_MOTOR.copy()
         self.arm_cmd = None          # (weight, q, kp, kd, tau)
+        self.velocity = VelocityCommand()   # fed by rt/cmd_vel
         self.policy_on = False
 
     def on_arm_sdk(self, msg):
@@ -84,7 +90,7 @@ class OnboardBalance:
                 override = {i: float((1 - w) * self.policy_targets[i] + w * q_sdk[i]) for i in blended}
             quat = d.qpos[3:7]
             gyro = d.qvel[3:6]           # free-joint angular velocity is in the body frame
-            self.policy_targets = self.policy.step(q, dq, quat, gyro, (0.0, 0.0, 0.0), override)
+            self.policy_targets = self.policy.step(q, dq, quat, gyro, self.velocity.get(), override)
         self.steps += 1
         q_des, kp, kd, tau = self.policy_targets.copy(), STIFFNESS.copy(), DAMPING.copy(), np.zeros(29)
         if w > 0:

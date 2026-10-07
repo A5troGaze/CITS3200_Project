@@ -1,4 +1,4 @@
-# Running `react_to_gestures.py` — Quick Start
+# Running `gesture_control.py` — Quick Start [13/09/2026]
 
 ## 1. Activate the shared environment
 

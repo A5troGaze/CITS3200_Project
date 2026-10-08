@@ -1,3 +1,5 @@
+'''gesture_control.py'''
+
 import sys
 import json
 import os
@@ -8,9 +10,6 @@ from mediapipe.tasks.python import vision
 
 from gesture_core import landmarks_to_vector, classify, draw_skeleton
 from brain import PlaceholderMimicBrain
-from real_controller import RealController
-from simulation_controller import SimController
-from onboard_sim_controller import OnboardSimController
 
 
 
@@ -28,17 +27,19 @@ MODE_GESTURE = "gesture"
 MODE_MIMIC = "mimic"
 MODE_TOGGLE_KEY = ord("m")
 
+BACKENDS = ("sim", "real")
+
 
 #==
 def build_controller(backend):
     if backend == "sim":
+        from simulation_controller import SimController
         return SimController()
-    if backend == "onboard":
-        return OnboardSimController()   # person_id's sim_standing.py --rl-lab: walking + arm mimicry
     if backend == "real":
+        from real_controller import RealController
         return RealController()
 
-    raise ValueError(f"Unknown backend: {backend}.\nOptions: 'sim', 'onboard' or 'real'.")
+    raise ValueError(f"UNKNOWN BACKEND: {backend}.\nOptions: {', '.join(BACKENDS)}.")
 
 
 def build_mimic_brain():
@@ -64,9 +65,8 @@ def build_mimic_brain():
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "onboard", "real"):
-        print("Usage: python gesture_control.py [sim|onboard|real]\n"
-              "  onboard: person_id's simulator (sim_standing.py --rl-lab); the only backend where 'm' mimic mode moves the arms")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("sim", "real"):
+        print("Usage: python gesture_control.py [sim|real]")
         sys.exit(1)
 
 
@@ -90,65 +90,71 @@ def main():
     mode = MODE_GESTURE
     mimic_brain = None                      # built on the first switch to mimic mode
 
-    while stream.isOpened():
-        ok, frame = stream.read()
-        if not ok:
-            break
-        frame = cv2.flip(frame, 1)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-        frame_timestamp_ms += 33
+    try:
+        while stream.isOpened():
+            ok, frame = stream.read()
+            if not ok:
+                break
+            frame = cv2.flip(frame, 1)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            frame_timestamp_ms += 33
 
 
-        if mode == MODE_GESTURE:
-            result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
-            gesture_name = None
+            if mode == MODE_GESTURE:
+                result = gesture_model.detect_for_video(mp_image, frame_timestamp_ms)
+                gesture_name = None
 
-            if result.hand_landmarks:
-                vector = landmarks_to_vector(result.hand_landmarks[0])
-                gesture_name, dist = classify(vector, registry)
+                if result.hand_landmarks:
+                    vector = landmarks_to_vector(result.hand_landmarks[0])
+                    gesture_name, _ = classify(vector, registry)
 
-            controller.set_gesture(gesture_name)
+                controller.set_gesture(gesture_name)
+                draw_skeleton(frame, result)
+                status_text = f"Gesture: {gesture_name or 'no match'}"
 
-            draw_skeleton(frame, result)
-            status_text = f"Gesture: {gesture_name or 'no match'}"
+            else:   # MODE_MIMIC
+                output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
+                controller.set_joint_targets(output.joint_targets)
 
-        elif mode == MODE_MIMIC:
-            # Arm angles go to the controller. Only the "onboard" backend moves
-            # the arms with them; "sim" (g1_ctrl) and "real" ignore them for now.
-            output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
-            controller.set_joint_targets(output.joint_targets)
+                # TEMP TODO
+                last = getattr(mimic_brain, "last_mimic", None)
+                if last is not None and frame_timestamp_ms % 990 == 0:
+                    print("[dbg] segment status:", last.status,
+                          "| joint 15 target:", f"{output.joint_targets.get(15, float('nan')):+.2f}")
 
-            status_text = f"Mimic mode ({len(output.joint_targets)} joint targets)"
+                status_text = f"Mimic mode ({len(output.joint_targets)} joint targets)"
 
+            cv2.putText(frame, status_text, (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.putText(frame, f"Mode: {mode} ['m' to toggle, 'q' to quit]", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+            cv2.imshow("Humanoid Control", frame)
 
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
 
-
-
-        cv2.putText(frame, status_text, (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.putText(frame, f"Mode: {mode} ['m' to toggle, 'q' to quit]", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-        cv2.imshow("Humanoid Control", frame)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        if key == MODE_TOGGLE_KEY:
-            mode = MODE_MIMIC if mode == MODE_GESTURE else MODE_GESTURE
-            print(f"switched to {mode} mode")
-            if mode == MODE_MIMIC:
-                controller.set_gesture(None)   # stop walking before handing over
-                if mimic_brain is None:
-                    mimic_brain = build_mimic_brain()
-                mimic_brain.reset()
-            controller.on_mode_change(mode)
-
-    close = getattr(mimic_brain, "close", None)
-    if close is not None:
-        close()
-    controller.stop()
-    stream.release()
-    cv2.destroyAllWindows()
+            if key == MODE_TOGGLE_KEY:
+                previous = mode
+                mode = MODE_MIMIC if mode == MODE_GESTURE else MODE_GESTURE
+                print(f"Switching to {mode} mode")
+                try:
+                    if mode == MODE_MIMIC:
+                        controller.set_gesture(None)   # stop walking before handing over
+                        if mimic_brain is None:
+                            mimic_brain = build_mimic_brain()
+                        mimic_brain.reset()
+                    controller.on_mode_change(mode)
+                except Exception as e:
+                    print(f"Mode switch failed ({e}). Staying in {previous} mode")
+                    mode = previous
+    finally:
+        close = getattr(mimic_brain, "close", None)
+        if close is not None:
+            close()
+        controller.stop()
+        stream.release()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()

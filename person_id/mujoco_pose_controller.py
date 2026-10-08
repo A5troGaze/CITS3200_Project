@@ -1,4 +1,7 @@
-"""CycloneDDS rt/lowcmd publisher that drives the Unitree MuJoCo G1 from
+"""
+mujoco_pose_controller.py
+
+CycloneDDS rt/lowcmd publisher that drives the Unitree MuJoCo G1 from
 person_id joint targets. SIMULATOR ONLY: never run this against a real robot
 (on the robot, rt/lowcmd bypasses balance; use arm_sdk_publisher.py).
 
@@ -76,9 +79,7 @@ def validate_targets(targets, allowed):
 class MujocoPoseController:
     """Publish person_id joint targets to unitree_mujoco over rt/lowcmd."""
 
-    def __init__(self, domain_id=1, interface="lo", control_hz=200.0, max_command_speed=5.0,
-                 smoothing_tau=0.05, commanded_only=False, gravity_comp=True, allow_legs=False,
-                 home="zero"):
+    def __init__(self, domain_id=0, interface="lo", control_hz=200.0, max_command_speed=5.0, smoothing_tau=0.05, commanded_only=False, gravity_comp=True, allow_legs=False, home="current", hold_kp=None, hold_kd=None, hold_q=None):
         if home not in ("zero", "current"):
             raise ValueError("home must be 'zero' or 'current'")
         self.home = home
@@ -111,6 +112,9 @@ class MujocoPoseController:
         self.thread = None
         self.publisher = None
         self.published = 0
+        self.hold_kp = None if hold_kp is None else np.asarray(hold_kp, dtype=float)
+        self.hold_kd = None if hold_kd is None else np.asarray(hold_kd, dtype=float)
+        self.hold_q = None if hold_q is None else np.asarray(hold_q, dtype=float)
 
     # -- DDS -----------------------------------------------------------------
     def init(self, timeout=10.0):
@@ -128,9 +132,8 @@ class MujocoPoseController:
         self.subscriber.Init(self._on_low_state, 10)
         if not self.ready.wait(timeout):
             raise TimeoutError(
-                "No rt/lowstate received. Check that unitree_mujoco is running "
-                f"with DOMAIN_ID={self.domain_id} and INTERFACE='{self.interface}' "
-                "(simulate_python/config.py).")
+                "No rt/lowstate received. Check that unitree_mujoco is running with "
+                f"domain_id={self.domain_id} and interface '{self.interface}' (its config.yaml).")
 
     def _on_low_state(self, msg):
         q = np.array([msg.motor_state[i].q for i in range(G1_NUM_MOTOR)])
@@ -157,6 +160,17 @@ class MujocoPoseController:
         self.stop_event.clear()
         self.thread = threading.Thread(target=self._run, name="mujoco-pose-control", daemon=True)
         self.thread.start()
+
+    def begin_session(self):
+        ''' '''
+        with self.lock:
+            q = self.latest_q.copy()
+            self.hold_positions = np.zeros(G1_NUM_MOTOR) if self.home == "zero" else q.copy()
+            if self.hold_q is not None:
+                self.hold_positions[:len(self.hold_q)] = self.hold_q
+            self.shaper = CommandShaper(q, self.control_dt, tau_s=self.smoothing_tau, max_speed=self.max_command_speed)
+            self.shaper.target = self.hold_positions.copy()
+            self.active = set()
 
     def set_targets(self, targets):
         """Partial {motor_index: angle_rad}; joints not mentioned keep their
@@ -250,11 +264,10 @@ class MujocoPoseController:
             if self.commanded_only and i not in active:
                 rows.append((measured[i], 0.0, 0.0, 0.0))
             else:
-                # Held joints go through the shaper too, so the move to the home
-                # pose is speed-limited. Gravity feed-forward on the upper body
-                # only: the leg rows of the gravity vector assume the pelvis is
-                # held, which is only true for the pinned-pelvis sim.
-                rows.append((q_cmd[i], KP[i], KD[i], float(tau[i]) if i >= 12 else 0.0))
+                kp_i, kd_i = KP[i], KD[i]
+                if i < 15 and self.hold_kp is not None:
+                    kp_i, kd_i = self.hold_kp[i], self.hold_kd[i]
+                rows.append((q_cmd[i], kp_i, kd_i, float(tau[i]) if i >= 12 else 0.0))
         return rows
 
     def _write_once(self):

@@ -2,7 +2,7 @@
 Headless MuJoCo helpers on unitree_mujoco's own G1 model.
 
 * load_sim_model(fixed_base=True): the exact MJCF the simulator runs
-  (unitree_robots/g1/scene.xml), optionally with the floating base removed
+  (unitree_robots/g1/scene_29dof.xml), optionally with the floating base removed
   so the pelvis is pinned at its rest pose (balance is out of scope).
 * PdSim: steps that model with the simulator's PD law
   (unitree_sdk2py_bridge.LowCmdHandler: ctrl = kp*(q_des - q) + kd*(0 - dq),
@@ -23,8 +23,8 @@ from g1_gains import KD, KP
 
 UNITREE_MUJOCO = os.path.expanduser(
     os.environ.get("UNITREE_MUJOCO_DIR", "~/CITS3200/Dependencies/unitree_mujoco"))
-SCENE_XML = os.path.join(UNITREE_MUJOCO, "unitree_robots", "g1", "scene.xml")
-SIMULATE_DT = 0.005  # unitree_mujoco simulate_python/config.py
+SCENE_XML = os.path.join(UNITREE_MUJOCO, "unitree_robots", "g1", "scene_29dof.xml")
+SIMULATE_DT = 0.005  # unitree_mujoco timestep (config.yaml)
 
 SIDES = ("left", "right")
 

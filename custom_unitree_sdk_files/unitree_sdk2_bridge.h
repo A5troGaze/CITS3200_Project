@@ -1,3 +1,10 @@
+'''
+The custom bridge (unitree_sdk2_bridge.h) is based on unitree_mujoco commit
+4134cb5dc7ff1ba7f484deda48b5274b58694519 (C++ MuJoCo 3.3.6). Copy it to
+unitree_mujoco/simulate/src/unitree_sdk2_bridge.h, then rebuild:
+cd unitree_mujoco/simulate/build && cmake .. && make -j4
+'''
+
 #pragma once
 
 #include <mujoco/mujoco.h>

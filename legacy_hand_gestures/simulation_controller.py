@@ -7,7 +7,6 @@ simulation_controller.py
 #------------------------------------------------------------------------#
 
 import os
-#import signal
 import subprocess
 import sys
 import threading
@@ -60,30 +59,6 @@ TURN_BACKWARD_CMD = {
     "turn_right": (-0.3, 0.0, -0.7),
 }
 
-'''
-# FixStand gains from unitree_rl_lab/deploy/robots/g1_29dof/config/config.yaml
-FIXSTAND_KP = [
-    100., 100., 100., 150., 40., 40.,      # left leg
-    100., 100., 100., 150., 40., 40.,      # right leg
-    200., 200., 200.,                      # waist
-    40., 40., 40., 40., 40., 40., 40.,     # left arm
-    40., 40., 40., 40., 40., 40., 40.,     # right arm
-]
-FIXSTAND_KD = [
-    2., 2., 2., 4., 2., 2.,
-    2., 2., 2., 4., 2., 2.,
-    5., 5., 5.,
-    10., 10., 10., 10., 10., 10., 10.,
-    10., 10., 10., 10., 10., 10., 10.,
-]
-
-FIXSTAND_Q = [
-    -0.1, 0., 0., 0.3, -0.2, 0.,    # left leg
-    -0.1, 0., 0., 0.3, -0.2, 0.,    # right leg
-    0., 0., 0.,                     # waist
-]
-'''
-
 
 #------------------------------------------------------------------------#
 #   Helpers
@@ -115,11 +90,6 @@ class SimController(AbstractGestureController):
 
         self._turn_phase_start = 0.0
         self._turn_going_forward = True
-
-        '''
-        self._g1_ctrl_muted = False
-        self._band_on = False           # startup_sequence releases the band
-        '''
         self._arms = None               # ArmSdkPublisher (rt/arm_sdk)
         self._mimic_active = False
 
@@ -145,10 +115,6 @@ class SimController(AbstractGestureController):
         try:
             self._stop_mimic()
         finally:
-            '''
-            if self._g1_ctrl_muted:     # Don't leave g1_ctrl frozen
-                self._unmute_g1_ctrl()
-            '''
             if self._arms is not None:
                 self._arms.stop()
             self._neutral()
@@ -172,23 +138,10 @@ class SimController(AbstractGestureController):
                 self.mode = MODE_MIMIC
             try:
                 time.sleep(MIMIC_SETTLE_S)      # sticks are neutral; let the robot settle
-                '''
-                self._set_band(True)            # catch the robot while g1_ctrl is muted
-                '''
                 self._prepare_mimic()
-                '''
-                self._mute_g1_ctrl()
-                self._start_mimic()
-                '''
                 self._arms.engage()             # weight ramps 0 -> 1; g1_ctrl keeps balancing
                 self._mimic_active = True
             except Exception:
-                '''
-                # Never leave g1_ctrl frozen
-                self._stop_mimic()
-                if self._g1_ctrl_muted:
-                    self._unmute_g1_ctrl()
-                '''
                 self._stop_mimic()
                 with self._lock:
                     self.mode = MODE_GESTURE
@@ -196,31 +149,11 @@ class SimController(AbstractGestureController):
 
         elif mode == MODE_GESTURE:
             self._stop_mimic()              # arms ease home, weight ramps 1 -> 0
-            '''
-            self._unmute_g1_ctrl()
-            self._ensure_velocity_policy()  # recover if g1_ctrl dropped to passive (band still on)
-            self._set_band(False)           # now it is walking again, release the band
-            '''
             with self._lock:
                 self.mode = MODE_GESTURE
 
         else:
             raise ValueError(f"UNKNOWN MODE: {mode!r}")
-
-
-    '''
-    #--------------------------------------------------------------------#
-    #   Elastic band (key 9 toggles it)
-    #--------------------------------------------------------------------#
-
-    def _set_band(self, on):
-        if on == self._band_on:
-            return
-        print(f"[Band] {'attaching' if on else 'releasing'} elastic band (key 9)...")
-        send_key_to_mujoco("9")
-        self._band_on = on
-        time.sleep(BAND_SETTLE_S)
-    '''
 
 
     #--------------------------------------------------------------------#
@@ -249,24 +182,6 @@ class SimController(AbstractGestureController):
             arms.start()     # publishes weight 0 until engage()
             self._arms = arms
 
-    '''
-    def _prepare_mimic(self):
-        """Slow one-time setup (DDS connect, Mujoco model load)"""
-        if self._arms is None:
-            person_id_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "person_id"))
-            if person_id_dir not in sys.path:
-                sys.path.append(person_id_dir)
-            from person_id.mujoco_pose_controller import MujocoPoseController
-            self._arms = MujocoPoseController(domain_id=0, interface="lo", home="current",
-                                              hold_kp=FIXSTAND_KP, hold_kd=FIXSTAND_KD, hold_q=FIXSTAND_Q)
-            self._arms.init()
-
-    def _start_mimic(self):
-        self._arms.begin_session()  # Capture robot pose while at rest
-        self._arms.start()
-        self._mimic_active = True
-    '''
-
     def _stop_mimic(self):
         if not self._mimic_active:
             return
@@ -275,31 +190,6 @@ class SimController(AbstractGestureController):
                 print("[Mimic] arm_sdk weight did not reach 0 in time")
         finally:
             self._mimic_active = False
-
-    '''
-    def _stop_mimic(self):
-        if not self._mimic_active:
-            return
-        try:
-            self._arms.return_to_start()    # Put arms back to starting pose
-        finally:
-            self._arms.stop(release=False)  # Keep the hold pose as last command
-            self._mimic_active = False
-
-    def _ensure_velocity_policy(self):
-        """g1_ctrl may have dropped to Passive while muted: FixStand, then walking policy."""
-        time.sleep(0.5)
-        self.gamepad.left_trigger_float(value_float=1.0)
-        self.gamepad.update()
-        time.sleep(2.0)
-        self._pulse(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP, hold=1.0)
-        self.gamepad.left_trigger_float(value_float=0.0)
-        self.gamepad.update()
-        time.sleep(4.0)                         # FixStand needs time to stand the robot up
-        self._pulse(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER,
-                    vg.XUSB_BUTTON.XUSB_GAMEPAD_X, hold=0.3)
-        time.sleep(1.0)
-    '''
 
 
     #--------------------------------------------------------------------#
@@ -374,28 +264,6 @@ class SimController(AbstractGestureController):
             self.gamepad.right_joystick_float(x_value_float=-wz, y_value_float=0.0)
             self.gamepad.update()
             time.sleep(period)
-
-
-    '''
-    #--------------------------------------------------------------------#
-    #   g1_ctrl mute / unmute
-    #--------------------------------------------------------------------#
-
-    @staticmethod
-    def _g1_ctrl_pid():
-        out = subprocess.run(["pgrep", "-x", "g1_ctrl"], capture_output=True, text=True)
-        if out.returncode != 0 or not out.stdout.strip():
-            raise RuntimeError(f"{G1_CTRL_PROCESS} is not running")
-        return int(out.stdout.split()[0])
-
-    def _mute_g1_ctrl(self):
-        os.kill(self._g1_ctrl_pid(), signal.SIGSTOP)
-        self._g1_ctrl_muted = True
-
-    def _unmute_g1_ctrl(self):
-        os.kill(self._g1_ctrl_pid(), signal.SIGCONT)
-        self._g1_ctrl_muted = False
-    '''
 
 
     #--------------------------------------------------------------------#

@@ -44,7 +44,7 @@ class CommandSource:    # Renamed from 'Brain'
 #----------------------------------------------------------
 # Placeholder source
 #----------------------------------------------------------
-class PlaceholderMimicSource(CommandSource):    # Renamed from 'PlaceholderMimicSource'
+class PlaceholderMimicSource(CommandSource):    # Renamed from 'PlaceholderMimicBrain'
     '''Fallback used by run.py when MimicSource can't be loaded.
     Does nothing: no joint targets, no walking.'''
 

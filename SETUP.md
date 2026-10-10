@@ -131,16 +131,26 @@ What these are for:
 
 ## 5. Get the project code
 
+The repository is private, so git needs your GitHub login. The simplest way is the GitHub CLI:
+
+```bash
+sudo apt install -y gh
+gh auth login      # GitHub.com > HTTPS > Yes (authenticate Git) > Login with a web browser
+gh auth status     # should say "Logged in to github.com"
+```
+
+Then clone:
+
 ```bash
 mkdir -p ~/HumanoidControl/Dependencies/Models
 cd ~/HumanoidControl
 git clone https://github.com/A5troGaze/CITS3200_Project.git Project
 cd Project
-git checkout main
+git checkout Cleanup
 ls run.py src    # both must exist
 ```
 
-If `run.py` or `src/` is missing, you are on an older branch. Ask the team which branch holds the release.
+The release code is on the `Cleanup` branch. Once it has been merged, use `git checkout main` instead. If `run.py` or `src/` is missing, you are on an older branch.
 
 ---
 
@@ -466,8 +476,8 @@ In the camera window:
 | `move_backward_left_hand` / `move_backward_right_hand` | Walk backward |
 | `move_left` | Step sideways left |
 | `move_right` | Step sideways right |
-| `turn_left` | Turn left on the spot |
-| `turn_right` | Turn right on the spot |
+| `turn_left` | Turn left on the spot (alternates small forward and backward steps while turning) |
+| `turn_right` | Turn right on the spot (alternates small forward and backward steps while turning) |
 
 The status line at the top of the camera window shows the recognised gesture, or `no match`.
 

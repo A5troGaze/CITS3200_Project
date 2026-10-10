@@ -1,0 +1,246 @@
+# Integrating person_id with the gesture / walking code
+
+Status: proposal. Nothing in the gesture or walking code has been changed.
+It was read on the branches `Walking-Policy-Test`, `New-Gestures` and `Simulation`
+(Chris), and `CycloneDDS-Simulation` / `Camera-Source` (Mengfei), as of
+2026-09-23.
+
+## Update 2026-09-23: rl_lab balance, arms-only person_id
+
+person_id now mimics the **arms only** and uses unitree_rl_lab's velocity
+policy for balance, loaded the same way as the gesture team's
+`rl_lab_walking_test.py` (same observation, action and gains;
+`rl_lab_policy.py`). Their open question (is the observation's joint
+state in policy order?) is answered by unitree_rl_lab's
+`deploy/include/unitree_articulation.h`: yes. Their assumption was right.
+
+Two findings affect both teams:
+
+1. **Run the policy in simulated time.** From a separate process it steps
+   every 20 ms of wall-clock time. When the VM slows the simulator to
+   0.4-0.8x real time (common here), the policy's observation history no
+   longer matches the physics, and in our DDS runs the robot fell at
+   random, even with the arms still. `sim_standing.py --rl-lab` runs the policy
+   inside the simulator, stepped with the physics. The robot then stood
+   through all our tests, including arm motion.
+2. **Overriding the arms of a walking policy** works only if the policy is
+   shown its arms at its default pose, and the arms move at <= ~1 rad/s
+   (details in `rl_lab_policy.py`). Showing it the real, overridden arm
+   state knocked it over in 8 of 10 test poses.
+
+That gives the sim the same shape as the real robot: the simulator plays
+Unitree's on-board locomotion (rl_lab policy, legs + waist), and person_id
+sends arm commands on `rt/arm_sdk` with the blend weight in
+`motor_cmd[29].q`. So person_id uses one code path (`arm_sdk_publisher.py`)
+for the sim and the G1. The gesture team's walking could plug into the same
+simulator: feed its velocity command (`vx, vy, vyaw`) to the on-board
+policy instead of (0, 0, 0), e.g. from `rt/wirelesscontroller`, which
+their virtual-gamepad bridge already produces. That would give "walk by
+gesture + arms by person_id" in the sim with no publishers fighting.
+Not implemented; team decision.
+
+## Who publishes what today
+
+| Component | Sim (unitree_mujoco, domain 1, `lo`) | Real robot (domain 0) |
+| --- | --- | --- |
+| person_id, default (`--balance onboard`) | `rt/arm_sdk`, arms only, to `sim_standing.py --rl-lab` (rl_lab policy balances in the simulator) | `rt/arm_sdk`, arms only, weight in `motor_cmd[29].q` (`arm_sdk_publisher.py`, `--real`) |
+| person_id, `--balance none` (`mujoco_pose_controller.py`) | `rt/lowcmd`, all 29 motors at 200 Hz; legs/waist held; pinned or band-held robot | n/a |
+| Gesture reaction (`simulation_controller.SimController`) | `rt/lowcmd`, all 29 motors at 500 Hz, holding a home pose plus the gesture's joint offsets | `real_controller.RealController`: `LocoClient.Move(vx, vy, vyaw)`, Unitree's own locomotion |
+| Walking policy (`rl_lab_walking_test.py`: unitree_rl_lab's whole-body ONNX velocity policy; `gesture_to_vgamepad.py` drives the C++ deploy through a virtual pad) | `rt/lowcmd`, all 29 motors **including the arms**, which are part of the policy's output | n/a (LocoClient above) |
+
+## Why two publishers fight in the sim
+
+unitree_mujoco's `LowCmdHandler` runs once per received `rt/lowcmd` message
+and rewrites `ctrl` for **all 29 actuators** from that message alone. It
+keeps that torque until the next message arrives, from any publisher. With
+two publishers running (person_id + SimController, or person_id + the
+walking policy), the robot receives alternating complete commands 200-500
+times a second: each one zeros or overrides the other's joints. The result
+is shaking, and the walking policy loses its leg torques half of the time.
+person_id's `--commanded-only` does not fix this: kp = kd = 0 on the legs
+still sets their torque to zero in every person_id message.
+
+**Rule for the sim: exactly one process publishes `rt/lowcmd`.**
+
+A second trap: when a publisher stops, the sim keeps applying its last
+torque indefinitely. person_id therefore sends a zero-torque release when it
+stops. A mode switch must hand over without a gap, or with a release.
+
+## On the real robot they can coexist
+
+On the G1, locomotion runs in Unitree's firmware and is driven by
+`LocoClient`. `rt/arm_sdk` blends a separate command into the arms and
+waist only, with the blend weight in `motor_cmd[29].q`. The legs stay under
+the balance controller. So on hardware:
+
+* gesture mode = `LocoClient.Move` (walk/turn), arm_sdk weight 0;
+* person_id mode = `LocoClient` standing still, arm_sdk weight ramped to 1;
+* both at once (walk by gesture while the arms mimic) is possible later.
+  It needs a way to give walking commands without the hand gestures that
+  are being mimicked.
+
+`rt/lowcmd` must never be published on the real robot by either component
+in normal operation: it overrides everything, including balance.
+
+## Proposed switch: one owner process with a mode flag
+
+The client asked for a switch between person-ID mode and gesture mode.
+Proposal: a small **mode manager** that owns the camera and the one DDS
+publisher, and runs one "brain" at a time.
+
+```
+camera ──► mode_manager ──► person_id brain (MimicPipeline)   ─┐
+                 │          gesture brain (gesture_core + map) ─┤► one output
+                 │                                              │   sim:  single rt/lowcmd publisher
+          mode = PERSON_ID | GESTURE | IDLE                     │   real: arm_sdk + LocoClient
+          switch: key 'm', CLI, or a held "switch" gesture  ────┘
+```
+
+Interface each brain implements (a plain Python protocol, no DDS inside):
+
+```python
+class Brain:
+    def step(self, frame_bgr, t) -> "BrainOutput": ...
+    def reset(self) -> None: ...
+
+@dataclass
+class BrainOutput:
+    joint_targets: dict[int, float]            # motor index -> rad (arms/waist); may be empty
+    base_velocity: tuple[float, float, float] | None = None   # (vx, vy, vyaw) for locomotion
+```
+
+* person_id brain: `MimicPipeline.step(landmarks, t).targets` -> `joint_targets`;
+  `base_velocity = (0, 0, 0)`.
+* gesture brain: recognised gesture -> `base_velocity` (real robot and
+  walking policy), or -> `joint_targets` (the current sim demo's
+  `GESTURE_TARGETS`).
+* The owner routes the output:
+  * sim: one publisher builds each LowCmd from the active brain's
+    `joint_targets` (legs from the walking policy, or held). The walking
+    policy's actions would be read in-process rather than published
+    separately, so there is still only one `rt/lowcmd` source;
+  * real: `joint_targets` -> `ArmSdkPublisher.set_targets`;
+    `base_velocity` -> `LocoClient.Move`.
+* Switching: the arms ease to neutral (arm_sdk weight ramps to 0 when
+  leaving person_id mode), the new brain is `reset()`, then it starts.
+  Leaving person_id mode is `ArmSdkPublisher.disengage()` / `clear_targets()`.
+* Both brains can share a single MediaPipe pass: the gesture code uses the
+  HandLandmarker and person_id the PoseLandmarker, on the same frame.
+* The switch gesture should be one the person_id leader won't do by
+  accident while mimicking (e.g. both hands on head for 2 s), or just a key.
+
+What each side would need to change (for the team to decide, not done here):
+* gesture code: expose a `Brain`-style `step()` that returns targets/velocity
+  instead of owning a publisher thread (its `set_gesture()` already
+  separates recognition from publishing);
+* person_id: `leader_pose.py`'s per-frame body becomes `PersonIdBrain.step()`.
+  `MimicPipeline` and the publishers are already DDS-free or lazily
+  imported, so this is a refactor, not a rewrite.
+
+## Open questions for the team
+
+1. Does the gesture sim demo keep publishing `rt/lowcmd` itself, or move to
+   the walking policy + virtual gamepad (Walking-Policy-Test)? The owner
+   process looks different for each. The walking policy was trained with its
+   own arm motion, so overriding its arms with person_id's while it walks
+   takes it outside its training (Chris's SETUP_rl_lab_walking_test.md
+   notes the same). In the sim, mimic while standing and walk while not
+   mimicking.
+2. Is the real G1 a waist-locked unit? If so, run person_id with `--waist yaw`.
+3. Walk and mimic at the same time on hardware, or strictly one mode at a time?
+
+## Update 2026-10-06: exact Integration-branch Brain contract
+
+The gesture team's `Integration` branch now defines the shared interface in
+`gesture_recognition/brain.py`:
+
+```python
+@dataclass
+class BrainOutput:
+    joint_targets: dict
+    base_velocity: tuple[float, float, float] | None = None
+
+class Brain:
+    def step(self, frame_bgr, t) -> BrainOutput: ...
+    def reset(self) -> None: ...
+```
+
+`person_id/person_id_brain.py` follows that contract. It is camera/window/DDS-free
+and returns `BrainOutput(joint_targets={motor_index: angle_rad},
+base_velocity=None)`. With `num_people=1` it auto-selects the only detected
+person, so mimic mode needs no click UI.
+
+The Integration branch flips the shared camera frame before either brain sees it:
+
+```python
+frame = cv2.flip(frame, 1)
+```
+
+Person ID was developed against the raw camera orientation, so instantiate it for
+that loop with `input_flipped=True`; it un-flips internally before pose detection.
+The `t` supplied by Integration (`frame_timestamp_ms / 1000.0`) is already in
+seconds and advances by about 0.033 s per frame, which is valid for both the
+MediaPipe VIDEO timestamp and the Person ID filters.
+
+Expected Integration-side construction is:
+
+```python
+from person_id.person_id_brain import PersonIdBrain
+
+mimic_brain = PersonIdBrain(num_people=1, input_flipped=True)
+...
+output = mimic_brain.step(frame, frame_timestamp_ms / 1000.0)
+# output.joint_targets is routed by the controller/mode manager.
+```
+
+The brain deliberately does **not** own `ArmSdkPublisher`. The shared owner should
+route `output.joint_targets`, keeping Person ID free of robot I/O.
+
+### Current simulator limitation confirmed against the Integration branch
+
+The Integration branch currently pauses `g1_ctrl` with `SIGSTOP` on entry to
+mimic mode and resumes it with `SIGCONT` on return to gesture mode. It does not
+yet route `BrainOutput.joint_targets`; `gesture_control.py` still has a TODO at
+that point.
+
+Stock `unitree_mujoco + g1_ctrl` does not consume the physical G1 firmware's
+`rt/arm_sdk` channel. The stock sim is driven through the low-level whole-body
+command path, so simply starting `ArmSdkPublisher` while using plain g1_ctrl will
+not move the simulated arms. Pausing g1_ctrl also pauses the process providing
+whole-body balance commands. Therefore the first integrated mimic demo should be
+pinned/band-supported unless the simulator gains an in-process arm/blending
+path that keeps a balance controller running. `sim_standing.py --rl-lab` works
+differently because it explicitly emulates the arm-sdk blend while the RL policy
+continues balancing.
+
+## Update 2026-10-07: mimic mode works on the `onboard` backend
+
+`gesture_control.py onboard` runs both modes on person_id's simulator
+(`sim_standing.py --rl-lab`), so 'm' now makes the simulated G1 copy the
+person's arms from the live camera while the walking policy keeps balancing.
+
+```bash
+# terminal 1 (person_id/)
+python3 sim_standing.py --rl-lab
+# terminal 2 (gesture_recognition/), once terminal 1 prints "Band released"
+python3 gesture_control.py onboard
+```
+
+- **Gesture mode:** the gesture's `(vx, vy, wz)` (the same `GESTURE_CMD` table
+  and turn logic as `SimController`) is published on the new `rt/cmd_vel` topic
+  (`person_id/velocity_cmd.py`). `sim_onboard.py` feeds it to the policy as its
+  velocity command instead of the fixed `(0, 0, 0)`. If `rt/cmd_vel` goes
+  quiet for 0.5 s the robot stops.
+- **Mimic mode:** the walking command is held at zero and
+  `PersonIdBrain`'s `joint_targets` (arms only, motors 15-28) go out through
+  `ArmSdkPublisher` on `rt/arm_sdk`. The arm weight ramps 0 -> 1 on entry. On
+  the way back to gesture mode the arms ease back to where they started, then
+  the weight ramps to 0. This takes a few seconds, and the camera window
+  pauses while it happens.
+- **Nothing is paused:** no `g1_ctrl`, `unitree_mujoco` or virtual gamepad is
+  used by this backend, so there is no SIGSTOP and no DDS domain mismatch
+  (everything is on domain 1, interface `lo`).
+
+The `sim` backend (stock `unitree_mujoco` + `g1_ctrl`) is unchanged and still
+cannot mimic, for the reasons above. `real` ignores the arm targets: driving
+the real G1's arms through `rt/arm_sdk` is still untested on hardware.

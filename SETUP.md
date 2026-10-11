@@ -276,14 +276,13 @@ make -j$(nproc)
 
 This produces `simulate/build/unitree_mujoco`.
 
-### 11.3 Quick test
+### 11.3 Check the build
 
 ```bash
-cd ~/HumanoidControl/Dependencies/unitree_mujoco/simulate/build
-./unitree_mujoco
+ls -l ~/HumanoidControl/Dependencies/unitree_mujoco/simulate/build/unitree_mujoco
 ```
 
-A MuJoCo window should open with the G1 hanging from a support band. A warning about the joystick is expected at this point. Close the window.
+The file should be listed. Do not start the simulator on its own: the project's `config.yaml` tells it to read the virtual gamepad, which only exists while `run.py` is running. Started alone, it prints `Error: Joystick open failed.` and closes (sometimes with a `Segmentation fault`). It is started properly in [USAGE.md](USAGE.md#3-run-in-simulation).
 
 ---
 

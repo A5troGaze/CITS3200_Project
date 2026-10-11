@@ -222,3 +222,5 @@ Check the result with [Verify gesture recognition](#2-verify-gesture-recognition
 | Robot falls over | Restart all three programs. In mimic mode, move your arms more slowly. |
 | Simulator runs in slow motion | The CPU is overloaded. Close other programs. |
 | Real robot does not move | Check that the computer and robot are on the same WiFi network (`ping` the robot), that the interface name in `src/real_controller.py` matches your WiFi interface, and that the robot is in standing walking mode. Real-robot mode is untested; see the note in [Section 4](#4-run-on-the-real-g1). |
+| Simulator closes immediately with `Error: Joystick open failed.` or `Segmentation fault` | The virtual gamepad does not exist yet. Start `run.py` first and wait for `Virtual gamepad is live`, then start the simulator. |
+| Mimic mode fails with `/tmp/cdds.LOG: cannot open for writing` | Another user account on this computer has run the program before and owns the DDS log file. Reboot (Ubuntu clears `/tmp` on start-up), or delete the file with `sudo rm /tmp/cdds.LOG`, then try again. |

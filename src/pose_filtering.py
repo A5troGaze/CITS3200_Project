@@ -17,7 +17,7 @@ import math
 
 import numpy as np
 
-from RUN.pose_to_target import SEGMENT_LANDMARKS, neutral_segments
+from pose_to_target import SEGMENT_LANDMARKS, neutral_segments
 
 
 #----------------------------------------------------------

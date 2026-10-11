@@ -22,10 +22,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from RUN.pose_filtering import OneEuroFilter, SegmentGate
+from pose_filtering import OneEuroFilter, SegmentGate
 from g1_joint_limits import G1_29DOF_JOINT_LIMITS
 from gmr_ik_solver import GmrIKSolver, commanded_joint_names
-from RUN.pose_to_target import (
+from pose_to_target import (
     SEGMENT_LANDMARKS,
     TargetBuilder,
     landmarks_to_array,

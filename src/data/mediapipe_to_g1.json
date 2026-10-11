@@ -1,0 +1,30 @@
+{
+    "_comment": "person_id copy of GMR's IK config for MediaPipe -> unitree_g1. Targets are built by mediapipe_to_gmr.py directly in G1 link frames and robot bone lengths, so scales are 1 and offsets are identity. Wrist rotation weight is 0 (MediaPipe gives no reliable hand orientation). Arm rotation weights are lowered per frame when the elbow is nearly straight (twist unobservable). See G1_ARM_CONVENTIONS.md.",
+    "robot_root_name": "pelvis",
+    "human_root_name": "pelvis",
+    "ground_height": 0.0,
+    "human_height_assumption": 1.0,
+    "use_ik_match_table1": true,
+    "use_ik_match_table2": false,
+    "human_scale_table": {
+        "pelvis": 1.0,
+        "torso": 1.0,
+        "left_upper_arm": 1.0,
+        "left_elbow": 1.0,
+        "left_wrist": 1.0,
+        "right_upper_arm": 1.0,
+        "right_elbow": 1.0,
+        "right_wrist": 1.0
+    },
+    "ik_match_table1": {
+        "pelvis":                  ["pelvis",          200, 200, [0, 0, 0], [1, 0, 0, 0]],
+        "torso_link":              ["torso",             0,  20, [0, 0, 0], [1, 0, 0, 0]],
+        "left_shoulder_yaw_link":  ["left_upper_arm",    0,   5, [0, 0, 0], [1, 0, 0, 0]],
+        "left_elbow_link":         ["left_elbow",       50,   5, [0, 0, 0], [1, 0, 0, 0]],
+        "left_wrist_roll_link":    ["left_wrist",       50,   0, [0, 0, 0], [1, 0, 0, 0]],
+        "right_shoulder_yaw_link": ["right_upper_arm",   0,   5, [0, 0, 0], [1, 0, 0, 0]],
+        "right_elbow_link":        ["right_elbow",      50,   5, [0, 0, 0], [1, 0, 0, 0]],
+        "right_wrist_roll_link":   ["right_wrist",      50,   0, [0, 0, 0], [1, 0, 0, 0]]
+    },
+    "ik_match_table2": {}
+}

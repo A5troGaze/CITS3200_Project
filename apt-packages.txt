@@ -1,0 +1,11 @@
+build-essential
+cmake
+python3-venv
+python3-dev
+libyaml-cpp-dev
+libboost-all-dev
+libeigen3-dev
+libspdlog-dev
+libfmt-dev
+libglfw3-dev
+xdotool

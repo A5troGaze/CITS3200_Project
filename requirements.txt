@@ -1,0 +1,19 @@
+# Install from the root folder:  pip install -r requirements.txt
+# The -e paths below are relative to that folder.
+
+# CPU-only PyTorch (needed by GMR). Avoids several GB of unused GPU libraries.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0+cpu
+
+# Libraries cloned into Dependencies/ (installed in place)
+-e ../Dependencies/unitree_sdk2_python
+-e ../Dependencies/GMR
+
+# Libraries the program imports directly
+mediapipe==1.0.0
+mujoco==3.11.0
+numpy==2.2.6
+scipy==1.15.3
+opencv-python==5.0.0.93
+opencv-contrib-python==5.0.0.93
+vgamepad==0.1.0

@@ -1,9 +1,7 @@
-'''
+/*
 The custom bridge (unitree_sdk2_bridge.h) is based on unitree_mujoco commit
-4134cb5dc7ff1ba7f484deda48b5274b58694519 (C++ MuJoCo 3.3.6). Copy it to
-unitree_mujoco/simulate/src/unitree_sdk2_bridge.h, then rebuild:
-cd unitree_mujoco/simulate/build && cmake .. && make -j4
-'''
+4134cb5dc7ff1ba7f484deda48b5274b58694519 (C++ MuJoCo 3.3.6).
+*/
 
 #pragma once
 
@@ -329,7 +327,7 @@ public:
         bmsstate->unlockAndPublish();
     }
 
-        // ---- rt/arm_sdk support: weight lives in motor_cmd[29].q (Unitree convention) ----
+    // ---- rt/arm_sdk support: weight lives in motor_cmd[29].q (Unitree convention) ----
     std::shared_ptr<unitree::robot::g1::subscription::LowCmd> arm_sdk;
     static constexpr int kArmFirst = 15, kArmLast = 28, kWeightIdx = 29;
     bool arm_masked_ = false;
@@ -386,7 +384,7 @@ public:
 };
 
 
-'''
+/*
 BSD 3-Clause License
 
 Copyright (c) 2016-2024 HangZhou YuShu TECHNOLOGY CO.,LTD. ("Unitree Robotics")
@@ -416,4 +414,4 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
+*/

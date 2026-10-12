@@ -1,0 +1,358 @@
+1a6c5ee | 2026-10-11 22:06:39 +0800 | Lithasa Munasinghe | Add README with overview, diagrams, glossary and FAQ
+357768d | 2026-10-11 17:38:56 +0800 | chris.wes | Cleaned up Legacy branch file structure
+69b90a1 | 2026-10-11 17:32:53 +0800 | chris wes | Updated booked hours
+ba7fc44 | 2026-10-11 17:24:24 +0800 | chris.wes |  tranferred legacy files to this branch
+28d6a65 | 2026-10-11 17:18:48 +0800 | chris.wes | edited SETUP.md and split into USAGE and SETUP files
+e28192e | 2026-10-11 16:16:08 +0800 | chris.wes | modified setup guide for clean test.
+f7c00ee | 2026-10-11 13:58:21 +0800 | chris.wes | fixed faulty imports still using old folder name
+ef8a85f | 2026-10-11 11:45:26 +0800 | Lithasa Munasinghe | Add Week 11 documentation and timesheet, correct booked hours and remove templates
+2ccaad4 | 2026-10-11 11:44:25 +0800 | chris.wes | moved legacy code to a Legacy branch and deleted from main
+44cc4b6 | 2026-10-11 11:38:48 +0800 | chris.wes | Added license clause to custom sdk file
+c54e847 | 2026-10-11 10:21:12 +0800 | Lithasa Munasinghe | Merge pull request #32 from A5troGaze/Cleanup
+679b530 | 2026-10-11 00:59:50 +0800 | Technetium-95m | Add files via upload
+c825fc1 | 2026-10-11 00:23:04 +0800 | Dylan Hu | Fix SETUP.md: release branch, GitHub auth for private repo, turn behaviour
+aa521a2 | 2026-10-10 16:05:46 +0000 | Dylan Hu | Write full setup and run guide in SETUP.md
+74ef113 | 2026-10-10 22:46:56 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+ac01d64 | 2026-10-10 22:46:53 +0800 | t | week 11 hours
+a035f98 | 2026-10-10 22:39:25 +0800 | Mengfei-Chen | Add Week 11 booked hours
+1a87653 | 2026-10-10 22:02:05 +0800 | terrycheung02 | Upload the weekly booked hours
+6f53018 | 2026-10-09 17:39:50 +0800 | chris wes | Updated Booked hours
+0d38175 | 2026-10-09 16:24:21 +0800 | chris.wes | changed some comments, renamed unitree_sdk_files to unitree_mujoco_patch
+5a2c124 | 2026-10-09 15:27:32 +0800 | chris.wes | Cleaned up naming, commenting, folder structure, code conventions, enforced relavtive file paths not hardcoded, etc.
+a142aaa | 2026-10-09 08:54:08 +0800 | chris wes | Updated booked hours
+e6d7c3c | 2026-10-08 16:15:24 +0800 | chris.wes | edited and reorganised code to work with standalone mujoco not pip mujoco. included modified unitree_sdk2_bridge file to allow rt/arm_sdk commands
+b120aac | 2026-10-07 13:16:17 +0800 | t | Make mimic mode drive the arms via an onboard sim backend
+f2ef79a | 2026-10-07 12:04:53 +0800 | chris.wes | added usage documentation
+53ec712 | 2026-10-07 11:37:24 +0800 | AstroGaze | Add MIT License to the project
+80e6640 | 2026-10-07 10:55:40 +0800 | chris.wes | took photos of gestures for documentation
+d60f4fa | 2026-10-07 10:51:21 +0800 | chris.wes | Merge branch 'Integration' of https://github.com/A5troGaze/CITS3200_Project into Integration
+ed05542 | 2026-10-07 10:46:26 +0800 | chris.wes | reorganised files, re-recorded hand gestures, saved gestures to library for documentation, wrote launch documentation
+70f7ea6 | 2026-10-07 09:33:39 +0800 | Mengfei-Chen | Add integration testing doc for gesture/mimic mode switch
+03c441e | 2026-10-07 09:16:05 +0800 | Mengfei-Chen | Merge remote-tracking branch 'origin/person-id-brain-integration' into Integration
+71742e1 | 2026-10-07 09:16:04 +0800 | Mengfei-Chen | Use PersonIdBrain for mimic mode (built lazily, falls back to placeholder)
+6b9c81e | 2026-10-07 02:36:01 +0800 | Technetium-95m | Fix Person ID package imports for integration
+d13011e | 2026-10-06 19:04:01 +0800 | Lithasa Munasinghe | Added Week 11 meeting agenda
+2c12219 | 2026-10-06 16:45:24 +0800 | Technetium-95m | Add reusable PersonIdBrain for integration
+5efa8f3 | 2026-10-06 02:32:32 +0800 | Technetium-95m | Add reusable PersonIdBrain for mimic integration
+8217b18 | 2026-10-05 10:03:15 +0800 | Mengfei-Chen | Add Brain interface; call on_mode_change on mode toggle
+94e4a66 | 2026-10-04 15:08:58 +0800 | Mengfei-Chen | Merge pull request #24 from A5troGaze/person_id_finalised
+d1359eb | 2026-10-04 10:18:51 +0800 | Lithasa Munasinghe | Add week 10 timesheet and booked hours
+6a9206e | 2026-10-04 00:26:07 +0800 | Technetium-95m | Finalise Person ID subsystem for merge
+b939daf | 2026-10-03 23:15:44 +0800 | Technetium-95m | Add files via upload
+e08f909 | 2026-10-03 19:51:29 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+5f9a793 | 2026-10-03 19:51:27 +0800 | t | add: Dylan week 10 booked hours
+a3e0bea | 2026-10-03 19:35:18 +0800 | Mengfei-Chen | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation # 请输入一个提交信息以解释此合并的必要性，尤其是将一个更新后的上游分支 # 合并到主题分支。 # # 以 '#' 开始的行将被忽略，而空的提交说明将终止提交。
+0514bc6 | 2026-10-03 19:32:18 +0800 | Mengfei-Chen | Add Week 10 booked hours
+6f5e3ed | 2026-10-03 19:19:02 +0800 | Mengfei-Chen | Add Week 10 booked hours
+aadefea | 2026-10-03 19:08:43 +0800 | Technetium-95m | Sync documentation with main
+c1f5c89 | 2026-10-03 19:03:04 +0800 | terrycheung02 | Update the weekly booked hours
+a7769b0 | 2026-10-02 22:09:02 +0800 | terrycheung02 | Merge pull request #23 from A5troGaze/Gesture
+45547f1 | 2026-10-01 17:17:25 +0800 | Mengfei-Chen | Merge pull request #22 from A5troGaze/Gesture-Branch-Cleanup
+c0ccfe5 | 2026-09-30 17:12:50 +0800 | Mengfei-Chen | Merge pull request #18 from A5troGaze/Simulation
+13abd70 | 2026-09-30 14:59:17 +0800 | Lithasa Munasinghe | Added Week 10 meeting minutes
+2907832 | 2026-09-30 14:53:01 +0800 | terry cheung | Integrate gamepad bridge into SimController and update setup guide
+417cdd3 | 2026-09-30 12:36:47 +0800 | chris wes | Updated Booked Hours
+fccad3a | 2026-09-30 11:56:03 +0800 | chris.wes | implemented muting and unmuting for program switch
+180b366 | 2026-09-30 11:49:04 +0800 | chris.wes | implemented switching code at started file level
+09b5ba2 | 2026-09-30 11:24:31 +0800 | chris.wes | rearranged code, commented code
+6badc4b | 2026-09-30 07:56:44 +0800 | chris.wes | fine tuned turning
+de84c15 | 2026-09-29 16:17:47 +0800 | chris wes | Updated Booked Hours
+d2a21fc | 2026-09-29 13:44:43 +0800 | Lithasa Munasinghe | Added Week 10 agenda
+c3d9f67 | 2026-09-29 10:50:18 +0800 | chris.wes | implemented rotating logic. Robot can no rotate by doing three point turns 'on the spot'
+61f432b | 2026-09-29 08:47:33 +0800 | chris.wes | modified .gitignore
+88edf98 | 2026-09-27 19:21:18 +0800 | AstroGaze | Merge pull request #19 from A5troGaze/Walking-Policy-Test
+6280592 | 2026-09-27 19:07:22 +0800 | AstroGaze | Merge pull request #12 from A5troGaze/New-Gestures
+f93f262 | 2026-09-27 19:03:22 +0800 | AstroGaze | Merge pull request #13 from A5troGaze/CycloneDDS-Simulation
+eb89102 | 2026-09-27 12:01:02 +0800 | Lithasa Munasinghe | Add Week 9 booked hours, timesheet and mentor and auditor minutes
+3dfa24b | 2026-09-26 18:20:52 +0800 | t | Update: week 9 hours
+60c6c2b | 2026-09-26 14:15:15 +0800 | Technetium-95m | Add files via upload
+bc18855 | 2026-09-26 14:13:05 +0800 | Technetium-95m | Update sprint3-team-agreement.md
+0543299 | 2026-09-25 23:41:59 +0800 | Mengfei-Chen | Add Week 9 booked hours
+e358f9f | 2026-09-25 23:06:49 +0800 | terrycheung02 | upload the weekly booked hours
+0cf9aa2 | 2026-09-25 13:30:31 +0800 | chris wes | Updated booked hours
+21a0a6e | 2026-09-25 13:11:59 +0800 | chris.wes | new demo video
+7a402f6 | 2026-09-25 12:17:22 +0800 | chris wes | Updated booked hours
+6c00315 | 2026-09-25 11:14:48 +0800 | Mengfei-Chen | Merge branch 'Walking-Policy-Test' of https://github.com/A5troGaze/CITS3200_Project into Walking-Policy-Test
+2d900c7 | 2026-09-25 11:10:33 +0800 | Mengfei-Chen | Turn gestures now use full stick deflection instead of partial tilt
+9c2d685 | 2026-09-24 12:10:47 +0800 | terry cheung | Merge remote-tracking branch 'origin/Walking-Policy-Test' into gesture-merge-test
+c50d366 | 2026-09-24 12:07:16 +0800 | chris wes | Updated booked hours
+ef15e98 | 2026-09-24 11:59:15 +0800 | terry cheung | Merge remote-tracking branch 'origin/Camera-Source' into gesture-merge-test
+9dabbf8 | 2026-09-24 11:45:07 +0800 | terry cheung | Merge remote-tracking branch 'origin/Simulation' into gesture-merge-test
+6f267e1 | 2026-09-24 09:46:49 +0800 | chris.wes | created a new setup guide to reflect all dependencies needed for Gesture's team aspect. Renamed old setup guide. Will need to be further updated
+e59b142 | 2026-09-24 07:25:14 +0800 | chris.wes | changed turn velocity to 0.75 for testing. didnt do anything
+40884e3 | 2026-09-23 15:39:30 +0800 | Dylan | Add INSTALL.md: setup and test instructions for a new machine
+9d2cb96 | 2026-09-23 14:05:00 +0800 | Lithasa Munasinghe | Week 9 meeting minutes
+a0bb75e | 2026-09-23 13:46:24 +0800 | Dylan | Docs: rl_lab balanced sim, arms-only mimicry, unitree_rl_lab setup
+cd628e4 | 2026-09-23 13:46:24 +0800 | Dylan | Balance the sim G1 with unitree_rl_lab's policy; person_id drives the arms over rt/arm_sdk
+7853699 | 2026-09-23 13:38:00 +0800 | chris wes | Updated Booked Hours
+4a17ef3 | 2026-09-23 13:30:36 +0800 | Dylan | Mimic the arms only by default; the torso is left to the balance controller
+b6508e7 | 2026-09-23 13:20:46 +0800 | Dylan | Downscale camera frames the driver delivers larger than requested
+d565772 | 2026-09-23 13:20:46 +0800 | Dylan | sim_standing.py: default to the MJCF's 2 ms physics step (5 ms made the wrist PD go unstable)
+e00ff1b | 2026-09-23 13:15:17 +0800 | Dylan | RUNNING.md: standing sim, VM CPU settings; DDS test wording
+40ba899 | 2026-09-23 13:15:15 +0800 | Dylan | Accuracy tests use a large GMR time budget so results don't depend on machine load
+d9f1639 | 2026-09-23 13:15:14 +0800 | Dylan | Controller eases every joint to the G1 zero posture on connect (home pose)
+459ab4b | 2026-09-23 13:15:13 +0800 | Dylan | Add sim_standing.py: unitree_mujoco with the G1 pinned standing on the floor, no band
+781aec4 | 2026-09-23 12:14:39 +0800 | Dylan | Add RUNNING.md and INTEGRATION.md; update SETUP.md for GMR, Python 3.10 and band keys
+b127a38 | 2026-09-23 12:12:00 +0800 | Dylan | Add optional Xsens BVH replay through GMR's bvh_xsens path into the same controller
+5ab0fa5 | 2026-09-23 12:10:39 +0800 | Dylan | DDS checks read rt/lowstate back: fixed-target pass/fail and replay tracking report
+c6d3f29 | 2026-09-23 12:10:39 +0800 | Dylan | Synthetic motion interpolates bone directions instead of landmark positions
+3e54c8e | 2026-09-23 12:10:39 +0800 | Dylan | Keep elbow twist continuous when an arm straightens (carry the previous hinge)
+cf0ec75 | 2026-09-23 12:10:39 +0800 | Dylan | Controller: gravity feed-forward from the pelvis IMU, zero-torque release on stop, 200 Hz
+97a5a5e | 2026-09-23 12:03:26 +0800 | Mengfei-Chen | Increase turn gesture magnitude to clear right-stick deadzone
+02a1445 | 2026-09-23 11:50:59 +0800 | Dylan | Remove the hand-written and Pinocchio retargeters and the second DDS bridge
+da721f0 | 2026-09-23 11:50:59 +0800 | Dylan | Test publishers without DDS and that --dry-run never imports unitree_sdk2py
+7453ec0 | 2026-09-23 11:50:59 +0800 | Dylan | Make leader_pose.py the single live entry point; person_id_live.py forwards to it
+326bca2 | 2026-09-23 11:50:59 +0800 | Dylan | Add --record-demo video (camera or stick figure | simulated G1) and synthetic replay generator
+1565d63 | 2026-09-23 11:50:59 +0800 | Dylan | Replay recordings through MimicPipeline; skip malformed frames; shared CLI options
+4321703 | 2026-09-23 11:50:59 +0800 | Dylan | MimicPipeline: a frame with no leader holds, then eases to neutral
+5611871 | 2026-09-23 11:50:23 +0800 | Dylan | Track the leader by centroid, velocity and torso colour histogram; add crossing tests
+581fa11 | 2026-09-23 11:50:23 +0800 | Dylan | Add rt/arm_sdk publisher for the real robot (dry-run unless --real, ramped weight)
+2860490 | 2026-09-23 11:50:23 +0800 | Dylan | Rework sim controller: lazy SDK import, shaped commands, gravity feed-forward, commanded-only mode
+40e08f3 | 2026-09-23 11:50:23 +0800 | Dylan | Add command shaping: low-pass, 5 rad/s cap and engage ramp instead of a 1 rad/s cap
+df67b2a | 2026-09-23 11:48:41 +0800 | Dylan | Add mimicry, pipeline safety and joint mapping tests
+9e4ab89 | 2026-09-23 11:48:41 +0800 | Dylan | Add headless G1 sim helpers (fixed base, sim PD law, gravity feed-forward) and SDK gains module
+87905bb | 2026-09-23 11:48:41 +0800 | Dylan | Add MimicPipeline: filter, gate, adapter, GMR and motor mapping in one place
+9f41fd2 | 2026-09-23 11:48:41 +0800 | Dylan | Add one-euro landmark filter and per-limb visibility gate
+c80d9c8 | 2026-09-23 11:48:41 +0800 | Dylan | Add GMR retargeting: MediaPipe adapter, person_id IK config and GMR wrapper
+400ecea | 2026-09-23 11:39:30 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+6d5c868 | 2026-09-23 11:38:48 +0800 | chris wes | Updated Booked Hours
+9258d11 | 2026-09-23 11:38:22 +0800 | Mengfei-Chen | Wire gesture-to-vgamepad bridge into gesture_control.py as new 'walk' backend
+24a28dd | 2026-09-23 11:30:23 +0800 | Mengfei-Chen | Add Murphy's signature to Sprint 3 team agreement
+2fc4041 | 2026-09-23 11:26:56 +0800 | t | signed agreement
+1438c9c | 2026-09-23 11:15:43 +0800 | Dylan | Add G1_ARM_CONVENTIONS.md: verified motor order, GMR format, sim and arm_sdk facts
+3db79f6 | 2026-09-23 11:08:45 +0800 | Dylan | Merge person_id-mujoco-bridge into person_id_finalised
+6ee8d82 | 2026-09-23 10:20:18 +0800 | chris wes | Updated booked hours
+65502c0 | 2026-09-23 10:15:28 +0800 | chris.wes | updated running documentation as well as moved a file to 'Functionality Tests'
+a17dd6c | 2026-09-23 10:02:21 +0800 | chris.wes | renamed and organised branch. Still need to edit Launch Documentation. Additionally, Setup documentation needs to be updated with new dependencies
+e5e8ed1 | 2026-09-23 09:30:03 +0800 | chris wes | Updating booked hours
+3a1b234 | 2026-09-23 08:57:00 +0800 | chris.wes | Got joystick bridge working. Now gestures need to be implemented into controlling robot
+609b0dc | 2026-09-23 07:30:37 +0800 | chris.wes | joystick commands being received
+20090ee | 2026-09-22 23:40:08 +0800 | Lithasa Munasinghe | add Pinocchio based retargeting prototype
+fc5c708 | 2026-09-22 13:10:16 +0800 | Lithasa Munasinghe | week 9 documentation
+99b3dd6 | 2026-09-21 13:49:29 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+fa2dd88 | 2026-09-21 13:49:26 +0800 | t | fix: finished week 8 deliverables
+d716b03 | 2026-09-21 11:35:44 +0800 | chris wes | Updated booked hours
+ac17ca2 | 2026-09-21 10:45:14 +0800 | chris.wes | messed around with self-balancing in mujoco. the physics in mujoco and the limited control (no onboard firmware) make this to be a behemoth task outside of a feasible scope
+0890dfd | 2026-09-20 18:14:38 +0800 | Mengfei-Chen | Combine standing-without-elastic-band fix with slow-ramped RL walking policy
+a479d61 | 2026-09-20 14:16:54 +0800 | chris.wes | Sim controller robot now can stand on own weight without falling giving a clean slate to start from
+5f360c9 | 2026-09-20 00:22:38 +0800 | t | week 8 deliverables
+3eb2d64 | 2026-09-19 21:29:33 +0800 | Technetium-95m | Add files via upload
+8857257 | 2026-09-19 20:42:44 +0800 | Mengfei-Chen | Add Week 8 booked hours
+587bd6f | 2026-09-19 20:40:29 +0800 | Lithasa Munasinghe | Add Week 8 booked hours
+614d78e | 2026-09-19 17:32:24 +0800 | terrycheung02 | Add the weekly booked hour
+ab2e810 | 2026-09-17 13:58:57 +0800 | Mengfei-Chen | Add standalone leg-policy validation script (not wired to gestures yet)
+18149d1 | 2026-09-17 00:50:37 +0800 | terry cheung | signed sprint3 team aggreement
+7f8147f | 2026-09-16 23:04:20 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+568f9b5 | 2026-09-16 23:03:59 +0800 | t | add: sprint 2 deliverables
+b15e199 | 2026-09-16 20:02:15 +0800 | Technetium-95m | Add files via upload
+f59af26 | 2026-09-16 16:36:21 +0800 | chris wes | Retrospective written - Needs a second opinion
+a416902 | 2026-09-16 15:51:24 +0800 | chris wes | Read and edited minutes as well as start on the Retrospective
+3545114 | 2026-09-16 15:05:56 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+3b323c5 | 2026-09-16 15:05:53 +0800 | t | client minutes
+69e2a2d | 2026-09-16 14:25:17 +0800 | chris wes | Updated Booked Hours
+df318b5 | 2026-09-16 14:20:02 +0800 | Mengfei-Chen | Add Sprint 3 user stories
+3c0cc91 | 2026-09-16 14:09:19 +0800 | chris.wes | Screen recording of current state of Gesture Control
+fd3bdcf | 2026-09-16 12:28:23 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+0d64e2a | 2026-09-16 12:28:20 +0800 | t | Week 8 meetings
+c051d76 | 2026-09-16 11:38:20 +0800 | Lithasa Munasinghe | Signed Sprint 3 team agreement
+cc88af8 | 2026-09-15 16:28:21 +0800 | Technetium-95m | retrospective update
+2dacfca | 2026-09-15 14:04:19 +0800 | chris wes | Updated Booked Hours
+04fb319 | 2026-09-15 09:32:48 +0800 | chris.wes | Post gesture reassignment live video testing
+d06921c | 2026-09-15 09:16:51 +0800 | chris.wes | minor testing documentation edits
+f760948 | 2026-09-14 17:50:39 +0800 | Mengfei-Chen | Add swappable camera source (webcam for sim, RealSense D435i for real G1)
+9870e57 | 2026-09-14 17:45:32 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+b9af194 | 2026-09-14 17:45:28 +0800 | t | finalised wk 7
+a6f4b5a | 2026-09-14 16:40:15 +0800 | terry cheung | Update gesture reaction video testing results
+6cff8b6 | 2026-09-14 15:42:56 +0800 | Lithasa Munasinghe | Improve documentation for personID mujoco integration
+55cf830 | 2026-09-14 15:24:37 +0800 | Lithasa Munasinghe | Add person ID CycloneDDS MuJoCo integration
+c11f68e | 2026-09-14 14:37:35 +0800 | chris wes | Updated Booked hours from yesterday, edited retrospective document, created a Sprint 3 team agreement
+0adfcc2 | 2026-09-14 11:47:51 +0800 | Mengfei-Chen | Implement RealController gesture-to-Move mapping, SimController graceful stop, remove stale TODO comment
+5a47e76 | 2026-09-13 19:56:26 +0800 | chris.wes | renamed files and added documentation to run cyclonedds version of mujoco
+2ae7a6b | 2026-09-13 18:41:12 +0800 | chris wes | Updated Booked hours and began on Retrospective
+b211068 | 2026-09-13 18:28:44 +0800 | chris.wes | Setup cyclonedds version of mujoco and gesture app. Created with the intention of later switching to  real robot and not a mujoco simulation.
+2bb8647 | 2026-09-13 16:50:30 +0800 | t | added week 7 timesheets
+7d94f73 | 2026-09-12 22:49:37 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+281541e | 2026-09-12 22:49:33 +0800 | t | add: week 7 hours
+fa1a1a9 | 2026-09-12 22:01:29 +0800 | Technetium-95m | Add files via upload
+a61d8bf | 2026-09-12 21:39:05 +0800 | terrycheung02 | Delete Documentation/Week 7/Booked_Hours_Terry.xlsx
+0248052 | 2026-09-12 21:37:55 +0800 | terrycheung02 | Add booked hours
+fdcecc9 | 2026-09-12 21:36:46 +0800 | terrycheung02 | Add week7 booked hour
+32d383c | 2026-09-12 21:34:37 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+b40c2b0 | 2026-09-12 21:34:34 +0800 | t | fix: wk 5 and wk 6 errors
+d308ed9 | 2026-09-12 20:38:09 +0800 | Mengfei-Chen | Add Week 7 booked hours
+e455030 | 2026-09-12 12:32:23 +0800 | chris.wes | rerecorded backwards gestures to differentiate better between forward and backward gestures
+8969b14 | 2026-09-12 02:23:21 +0800 | chris wes | Updated Booked hours
+5972a04 | 2026-09-11 21:52:04 +0800 | chris.wes | cyclonedds react edit. researching cyclonedds mujoco implementation
+30534b0 | 2026-09-11 20:50:33 +0800 | Lithasa Munasinghe | Added Week 7 booked hours
+c64437b | 2026-09-11 20:31:32 +0800 | chris.wes | edited simulation actions associated with gestures. performed live video feed testing
+6ec5267 | 2026-09-11 18:47:09 +0800 | chris.wes | Renamed Testing files to make sense of order
+ed3e424 | 2026-09-10 17:35:56 +0800 | terrycheung02 | Add formal gesture reaction testing results
+9ec36d3 | 2026-09-09 15:18:30 +0800 | t | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+7c4b2b7 | 2026-09-09 15:18:27 +0800 | t | update: updated week 7 deliverables
+cb673b6 | 2026-09-09 12:12:48 +0800 | chris wes | Updated Booked Hours and included Important Topics discussed and brought up in group meeting
+f151041 | 2026-09-09 11:24:59 +0800 | t | Add Person ID / MuJoCo bridge docs
+d657603 | 2026-09-09 11:22:25 +0800 | t | Copy SETUP.md from main onto this branch unchanged
+b29ce02 | 2026-09-09 11:21:48 +0800 | t | Add pytest suite (person_id/tests/) and fix the bugs it caught
+d221792 | 2026-09-09 11:12:01 +0800 | t | Extend mujoco_link.py into a real rt/lowcmd publisher bridge
+cbee81e | 2026-09-09 11:09:51 +0800 | t | Add leader_pose.py, delete the three pose_test*.py scripts it replaces
+d7aefd0 | 2026-09-09 11:08:01 +0800 | t | Add person_id/retarget_upper_body.py: analytic MediaPipe -> G1 arm retargeting
+a1f4d72 | 2026-09-09 11:07:48 +0800 | t | Add person_id/pose_common.py: shared capture/tracking/drawing helpers
+187bc25 | 2026-09-09 11:07:34 +0800 | t | Move g1_joint_limits.py into person_id/ so the pipeline can import it
+1c0f391 | 2026-09-09 10:55:25 +0800 | t | Add root .gitattributes to normalise line endings to LF
+30f9ad5 | 2026-09-09 10:55:00 +0800 | t | Replace root .gitignore with a scoped person_id/.gitignore
+a033bb4 | 2026-09-09 10:53:46 +0800 | t | Merge remote-tracking branch 'origin/mujoco-connection-person' into person_id-mujoco-bridge
+a60280f | 2026-09-09 10:18:52 +0800 | Dylan | Week 7 agenda changes
+c60d3a3 | 2026-09-09 10:18:43 +0800 | Dylan | Week 7 agenda
+4637a20 | 2026-09-08 19:59:17 +0800 | terrycheung02 | Add video input support to gesture reaction script
+9d559fb | 2026-09-07 12:36:40 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+6451a19 | 2026-09-07 12:36:37 +0800 | chris wes | Updated booked hours
+bc13557 | 2026-09-06 21:08:47 +0800 | chris.wes | Built a reaction to gestures based on previous work. Reactions are not perfect, just noticeable to establish work basis. Began construction on a version that uses cyclonedds for application to irl robot.
+9cdba39 | 2026-09-05 11:55:34 +0800 | chris.wes | Edited comment in
+a6c626d | 2026-09-05 11:50:59 +0800 | chris.wes | Refactored  function to  to avoid repeat code
+b215ee9 | 2026-09-05 11:31:10 +0800 | chris.wes | Created running documentation. Edited  and  to display hand skeleton on webcam feed.
+438a17d | 2026-09-05 10:43:28 +0800 | chris.wes | Renamed and organised running and test documentation
+e1bb959 | 2026-09-05 10:37:20 +0800 | chris.wes | Updated Setup guide to include mujoco menajerie. Commented g1_wave_demo_interactive
+0f1bdf4 | 2026-09-03 14:47:51 +0800 | Mengfei-Chen | Add MuJoCo G1 bring-up demo scripts
+6b0cb76 | 2026-09-03 12:31:04 +0800 | Lithasa Munasinghe | Add combined multi-person world landmark prototype
+81da029 | 2026-09-02 17:51:06 +0800 | Dylan | change: added joint limits
+3fca6f3 | 2026-09-02 10:55:27 +0800 | Technetium-95m | Add live MuJoCo pose bridge
+2b534c6 | 2026-09-01 21:56:43 +0800 | Dylan | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+798890d | 2026-09-01 21:56:40 +0800 | Dylan | week 6 deliverables
+2b37d24 | 2026-08-29 23:54:44 +0800 | Mengfei-Chen | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+7f2979b | 2026-08-29 23:54:38 +0800 | Mengfei-Chen | Add Week 6 booked hours
+1bf9af7 | 2026-08-29 23:46:31 +0800 | Dylan | Week 6 deliverables
+d7ff967 | 2026-08-29 23:27:53 +0800 | Dylan | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+63cdca6 | 2026-08-29 23:27:50 +0800 | Dylan | Week 6 Booked Hours
+a3edd6b | 2026-08-29 23:27:24 +0800 | Dylan | Week 6 Booked Hours Dylan
+01efd7d | 2026-08-29 11:06:45 +0800 | terrycheung02 | Add week6 booked hours
+c5d0924 | 2026-08-29 02:40:12 +0800 | Technetium-95m | Add files via upload
+d0f89d2 | 2026-08-28 18:44:57 +0800 | Lithasa Munasinghe | Added Week 6 booked hours
+c9b7dd9 | 2026-08-28 17:32:57 +0800 | chris wes | Updated Booked hours
+62a1814 | 2026-08-28 15:56:42 +0800 | Dylan | Merge branches 'person_id' and 'person_id' of https://github.com/A5troGaze/CITS3200_Project into person_id
+432e0eb | 2026-08-26 19:03:48 +0800 | chris wes | Updated Booked Hours
+04fd89b | 2026-08-26 05:47:12 +0000 | Dylan | Add multi-person detection with click-to-select leader tracking
+457eb12 | 2026-08-26 09:42:14 +0800 | Dylan | Week 6 Deliverables
+b94e5b5 | 2026-08-26 07:53:20 +0800 | chris.wes | syntax on formal testing file
+7cb290a | 2026-08-26 07:49:54 +0800 | chris.wes | reset the threshold back from 5 to 1.5
+6407f67 | 2026-08-26 07:31:38 +0800 | AstroGaze | Merge pull request #5 from A5troGaze/Recognize-Gestures
+49fba60 | 2026-08-26 01:06:56 +0800 | Lithasa Munasinghe | Merge pull request #6 from A5troGaze/person_id_world_landmarks
+37ec643 | 2026-08-25 16:58:39 +0000 | Lithasa | Update pose tracking comments and usage examples
+4fe2363 | 2026-08-25 18:59:43 +0800 | Dylan | submitted weekly deliverables
+a1b68c5 | 2026-08-22 22:20:32 +0800 | Dylan | booked hours
+f517c04 | 2026-08-22 01:52:25 +0800 | Technetium-95m | Add files via upload
+7e780cd | 2026-08-21 21:48:44 +0800 | Lithasa Munasinghe | Week 5 booked hours
+e35a1cf | 2026-08-21 21:42:11 +0800 | Mengfei-Chen | Add Week 5 booked hours
+a6fc45d | 2026-08-21 21:10:02 +0800 | Lithasa Munasinghe | Add 3D world landmark export prototype
+d3f98cb | 2026-08-21 20:24:22 +0800 | terrycheung02 | add weekly booked hours
+09fb6e7 | 2026-08-21 11:19:35 +0800 | terrycheung02 | Merge pull request #4 from A5troGaze/Formal-Gesture-Testing
+9d18b2c | 2026-08-21 09:51:35 +0800 | chris wes | Booked Hours
+bcc54c3 | 2026-08-21 09:15:18 +0800 | chris.wes | performed live camera testing and recorded results
+e2944ac | 2026-08-20 23:49:00 +0800 | terrycheung02 | Add first round formal gesture testing results
+167534e | 2026-08-19 14:00:45 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+a98c8fe | 2026-08-19 14:00:40 +0800 | chris wes | Updated Booked Hours
+a0eb382 | 2026-08-19 13:34:47 +0800 | Dylan | update: recorded client meeting minutes
+61b3a5e | 2026-08-19 12:32:23 +0800 | chris.wes | Model path changes
+08d4e15 | 2026-08-19 12:30:49 +0800 | Dylan | change: pose_test prototype
+0a57293 | 2026-08-19 12:26:54 +0800 | Dylan | timesheet week4
+13b2e3c | 2026-08-19 12:14:11 +0800 | chris.wes | model location
+42a7c56 | 2026-08-19 12:07:20 +0800 | chris.wes | test
+d3130ac | 2026-08-19 11:55:38 +0800 | Dylan | Merge branch 'main' of https://github.com/A5troGaze/CITS3200_Project
+e742b98 | 2026-08-19 11:54:02 +0800 | chris.wes | tweaked the threshold
+c0b3b19 | 2026-08-19 11:53:59 +0800 | Dylan | Add TESTING_SETUP.md: native Ubuntu setup for running/testing project code
+fdb3212 | 2026-08-19 11:44:35 +0800 | Dylan | Add single-person pose detection test script
+776bd73 | 2026-08-19 11:41:11 +0800 | Dylan Hu | Week4_Meeting
+bb91efb | 2026-08-17 13:43:56 +0800 | chris wes | Updated Booked Hours
+ee212a0 | 2026-08-17 13:39:27 +0800 | Mengfei-Chen | Remove stale hardcoded threshold text in summary output
+5974974 | 2026-08-17 13:27:39 +0800 | chris.wes | Tested recogniser and tweaked distance threshold. Added running console output. Re-recorded gestures for correct classification
+d5796a9 | 2026-08-17 12:04:51 +0800 | Mengfei-Chen | Add real-time gesture recognition script with console output
+c7ecb06 | 2026-08-15 20:51:03 +0800 | Mengfei-Chen | Merge pull request #3 from A5troGaze/Static-Gesture_Recognition
+fbda50c | 2026-08-15 17:55:32 +0800 | chris wes | Update Booked Hours
+1361e65 | 2026-08-15 15:39:47 +0800 | chris.wes | Added gesture recognition logic file (gesture_core). Added manner in which to record gestures and have recorded gestures stored under data/gesturs.json.
+4594da9 | 2026-08-15 13:14:13 +0800 | chris.wes | edited SETUP.md
+7f063b0 | 2026-08-15 12:12:16 +0800 | chris wes | Updated booked hours
+5ec1467 | 2026-08-15 12:03:17 +0800 | chris.wes | Added beginning stages of gesture recognition by testing functionality and recording it. Commented and wrote up documentation for running test
+30c89ee | 2026-08-15 08:18:04 +0800 | chris wes | Timesheet Updated and Submitted
+e7b7cda | 2026-08-15 03:41:56 +0800 | Technetium-95m | Add files via upload
+2ebac8b | 2026-08-14 21:47:53 +0800 | chris wes | Updated Timesheet
+65feac2 | 2026-08-14 20:59:42 +0800 | Mengfei-Chen | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+ec63813 | 2026-08-14 20:58:58 +0800 | Mengfei-Chen | Fix Week 4 booked hours
+c52ecf6 | 2026-08-14 20:54:45 +0800 | Lithasa Munasinghe | Added Week 4 booked hours - Dylan
+36cc211 | 2026-08-14 19:41:39 +0800 | chris wes | Updated Booked Hours
+906ca73 | 2026-08-14 18:55:11 +0800 | Mengfei-Chen | Update Week 4 booked hours
+4b0da26 | 2026-08-14 18:40:58 +0800 | Lithasa Munasinghe | Added Week 4 booked hours
+ce1da19 | 2026-08-14 18:16:49 +0800 | chris.wes | renamed library to gesture_library
+cdd5bad | 2026-08-14 17:20:44 +0800 | terrycheung02 | Submit weekly booked hours
+fd4d5d6 | 2026-08-14 17:16:37 +0800 | chris.wes | added gesture library
+e0d1daa | 2026-08-12 16:41:25 +0800 | chris wes | Renamed files and created pdfs
+0dafd7f | 2026-08-12 16:18:04 +0800 | chris wes | Deleted unused files and did line spacing edits on some files
+40df3aa | 2026-08-12 16:05:20 +0800 | Lithasa Munasinghe | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+36558e5 | 2026-08-12 16:04:28 +0800 | Lithasa Munasinghe | Updated user stories
+3417b16 | 2026-08-12 15:42:06 +0800 | Technetium-95m | Add files via upload
+3c3d20c | 2026-08-12 15:13:07 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+2965744 | 2026-08-12 15:12:55 +0800 | chris wes | Meeting Documentation
+fbbd5bf | 2026-08-12 14:47:40 +0800 | Lithasa Munasinghe | Updated Sprint 2 user stories
+1d2ab62 | 2026-08-12 13:36:26 +0800 | Dylan Hu | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+4381943 | 2026-08-12 13:36:23 +0800 | Dylan Hu | add file: acceptance tests
+5701766 | 2026-08-12 11:47:29 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+6cfa3b9 | 2026-08-12 11:47:12 +0800 | chris wes | Meeting Agenda Updated and Timesheet explained
+de68bee | 2026-08-12 11:27:13 +0800 | Lithasa Munasinghe | Added Sprint1  user stories - Terry and Lithasa
+7104be3 | 2026-08-12 10:18:45 +0800 | chris wes | Updated Agenda
+f92fe4f | 2026-08-11 14:52:22 +0800 | chris wes | Updated Booked Hours
+d69ba16 | 2026-08-10 17:44:36 +0800 | chris wes | minor changes to `SETUP.md`
+aa34e92 | 2026-08-10 17:41:50 +0800 | chris wes | Wrote a SETUP procedure for development
+a3b9ee9 | 2026-08-10 15:43:59 +0800 | chris wes | Meeting Minutes and Week 4 Prep
+19e3327 | 2026-08-10 14:01:19 +0800 | Mengfei-Chen | Update Scope of Work with full draft content
+a3e25b3 | 2026-08-10 13:28:41 +0800 | chris wes | Created Meeting Agenda
+fee62f8 | 2026-08-09 15:03:06 +0800 | AstroGaze | Create README.md
+c908b9e | 2026-08-09 15:00:35 +0800 | chris.wes | Add .gitignore with standard untracked files: pychache, venv, etc.
+6f46615 | 2026-08-08 09:54:43 +0800 | chris wes | Weekly Deliverable Documentation
+066f9fa | 2026-08-08 03:44:40 +0800 | Technetium-95m | Add files via upload
+b294c5a | 2026-08-07 19:18:01 +0800 | chris wes | Updated Timesheet
+771c1fa | 2026-08-07 19:12:47 +0800 | chris wes | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+c9405a6 | 2026-08-07 19:12:31 +0800 | chris wes | Filled in timesheet
+9bd2b45 | 2026-08-07 19:09:51 +0800 | Mengfei-Chen | Update Week 3 booked hours
+e5c0f73 | 2026-08-07 18:58:59 +0800 | Mengfei-Chen | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+99665d6 | 2026-08-07 18:52:12 +0800 | Mengfei-Chen | Continue logging hours
+51c5896 | 2026-08-07 18:40:17 +0800 | Dylan Hu | Merge branch 'Documentation' of https://github.com/A5troGaze/CITS3200_Project into Documentation
+6711149 | 2026-08-07 18:40:14 +0800 | Dylan Hu | its telling me to commit this but idt i did any changes to these files can you check them?
+ac7f26c | 2026-08-07 18:38:15 +0800 | terrycheung02 | Add weekly booked hour
+a290688 | 2026-08-07 18:36:01 +0800 | Dylan Hu | Uploaded week 3 booked hours
+a21ea8c | 2026-08-07 18:34:26 +0800 | chris wes | Updated documentation
+bfdd7d0 | 2026-08-07 18:13:22 +0800 | Lithasa Munasinghe | Added Week 3 booked hours
+3cdcf3b | 2026-08-06 12:14:57 +0800 | chris wes | Skills and Resources Audit
+2054d26 | 2026-08-06 07:44:05 +0800 | chris wes | Updated Role Schedule
+181bf63 | 2026-08-05 18:18:21 +0800 | chris wes | Updated Weekly Documentation
+a43ddf5 | 2026-08-05 11:54:00 +0800 | chris wes | Post Group Meeting
+1f65bbc | 2026-08-05 11:09:40 +0800 | chris wes | Agenda Update
+1bc0f17 | 2026-08-04 16:31:01 +0800 | chris wes | Renamed File
+f1dd110 | 2026-08-04 16:24:14 +0800 | chris wes | Agenda for Group Meeting 3 Written
+502ec1c | 2026-07-31 20:07:21 +0800 | Mengfei-Chen | Update Week 2 booked hours
+71f622e | 2026-07-31 16:48:00 +0800 | terrycheung02 | Delete Documentation/Week 2/Booked Hours/Booked_Hours_Terry.xlsx
+0e0dbf7 | 2026-07-31 16:19:18 +0800 | terrycheung02 | Add files via upload
+82132bf | 2026-07-31 15:06:46 +0800 | Dylan | Merge pull request #2 from A5troGaze:Dylan_Week2_Hours
+65b2cea | 2026-07-31 15:06:26 +0800 | Dylan Hu | Logged hours in week 2
+5633c6e | 2026-07-31 13:06:36 +0800 | chris wes | Created PDF versions
+4997dd7 | 2026-07-31 12:58:26 +0800 | chris wes | Timesheet Edits
+9579b1b | 2026-07-31 12:27:41 +0800 | chris wes | Copy and Pasted Updated Timesheet
+51fee11 | 2026-07-31 12:24:39 +0800 | chris wes | Timesheet and Booked Hours
+527fa5e | 2026-07-31 10:06:52 +0800 | chris wes | Dylan and Dhava Timesheet
+299e06a | 2026-07-31 16:49:29 +0800 | terrycheung02 | Add week2 booked hour
+23a37b6 | 2026-07-31 12:25:17 +0800 | chris wes | Renamed Diagram and Saved Client meeting minutes as pdf
+adc3b35 | 2026-07-31 01:58:46 +0800 | Lithasa Munasinghe | Added Week 2 booked hours
+cbff787 | 2026-07-31 01:33:35 +0800 | Technetium-95m | timesheet
+b514736 | 2026-07-30 21:09:04 +0800 | chris wes | Own booked hours
+6e0d6d4 | 2026-07-30 20:56:30 +0800 | chris wes | Finished Meeting Minutes
+a96ea76 | 2026-07-30 12:46:51 +0800 | chris wes | Updated Docs
+0efee29 | 2026-07-30 12:39:32 +0800 | chris wes | Updated Documents in Week 2
+f39428c | 2026-07-29 16:17:10 +0800 | chris wes | Creation of Sprint 1 Deliverable Documents
+ef12c76 | 2026-07-29 16:08:36 +0800 | chris wes | project acceptance test manual
+e83e8d3 | 2026-07-29 15:30:31 +0800 | chris wes | Updated Booked Hours
+cdf5bc8 | 2026-07-29 15:30:02 +0800 | chris wes | Updated Timesheets
+b63af08 | 2026-07-29 11:59:01 +0800 | chris wes | Updated documentation after week 2 meeting
+04b837c | 2026-07-29 11:28:34 +0800 | chris wes | Updated Role Schedule
+ae19ab1 | 2026-07-29 08:54:23 +0800 | chris wes | Updated Agenda for Team Meeting
+daaa0a5 | 2026-07-24 08:31:08 +0800 | chris wes | Created a Role Schedule
+b669e0c | 2026-07-23 21:23:13 +0800 | chris wes | Timesheet and Minutes
+178a70e | 2026-07-23 20:07:44 +0800 | chris wes | Added Documentation Templates
+fdd775b | 2026-07-20 13:22:44 +0800 | chris wes | Structure Change
+4743e75 | 2026-07-20 09:30:41 +0800 | AstroGaze | Initial commit
